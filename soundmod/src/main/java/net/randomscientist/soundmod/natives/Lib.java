@@ -1,7 +1,7 @@
-package net.fabricmc.example.natives;
+package net.randomscientist.soundmod.natives;
 
 import jdk.incubator.foreign.SymbolLookup;
-import net.fabricmc.example.ExampleMod;
+import net.randomscientist.soundmod.SoundMod;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.*;
@@ -15,12 +15,12 @@ public class Lib {
         String overwrite = System.getProperty("example_mod.native_lib");
         if (overwrite != null) {
             File overwriteFile = new File(overwrite).getAbsoluteFile();
-            ExampleMod.LOGGER.info("attempting to load natives from " + overwrite);
+            SoundMod.LOGGER.info("attempting to load natives from " + overwrite);
             System.load(overwriteFile.getAbsolutePath());
             nativeLookup = SymbolLookup.loaderLookup();
             return;
         }
-        File nativeFile = extractNatives(new File(System.getProperty("user.dir"), "examplemod" + File.separator + "natives"));
+        File nativeFile = extractNatives(new File(System.getProperty("user.dir"), "soundmod" + File.separator + "natives"));
         System.load(nativeFile.getAbsolutePath());
         nativeLookup = SymbolLookup.loaderLookup();
     }
@@ -34,9 +34,9 @@ public class Lib {
             throw new RuntimeException("Natives directory is not a directory");
         }
 
-        String fileName = System.mapLibraryName("rust-library");
+        String fileName = System.mapLibraryName("soundmod-natives");
         File nativesFile = new File(dstDirectory, fileName);
-        ExampleMod.LOGGER.info("Extracting natives to " + nativesFile);
+        SoundMod.LOGGER.info("Extracting natives to " + nativesFile);
 
         if(nativesFile.isFile()) {
             if (!nativesFile.delete()) {

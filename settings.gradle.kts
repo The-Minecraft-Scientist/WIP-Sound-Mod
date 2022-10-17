@@ -7,5 +7,5 @@ pluginManagement.repositories {
     }
 }
 
-rootProject.name = "rust-fabric-example"
-include("natives","fabric-example-mod")
+rootProject.name = "sound-mod-project"
+include("soundmod-natives","soundmod")
