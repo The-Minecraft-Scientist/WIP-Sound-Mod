@@ -103,7 +103,6 @@ public class Lib {
         Arch(String name) {
             this.name = name;
         }
-
         static Arch getArch() {
             return switch (SystemUtils.OS_ARCH) {
                 case "x86" -> I686;

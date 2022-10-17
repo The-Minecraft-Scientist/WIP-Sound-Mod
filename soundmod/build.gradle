@@ -86,4 +86,5 @@ publishing {
 runClient {
 	jvmArgs("--enable-native-access=ALL-UNNAMED", "--add-modules=jdk.incubator.foreign")
 }
-tasks.getByName("build").dependsOn(":natives:build")
+tasks.getByName("build").dependsOn(":soundmod-natives:build")
+tasks.getByName("compileJava").dependsOn(":soundmod-natives:build")

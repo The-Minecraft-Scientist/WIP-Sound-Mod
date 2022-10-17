@@ -17,7 +17,6 @@ public class SoundMod implements ModInitializer {
 	// It is considered best practice to use your mod id as the logger's name.
 	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger("soundmod");
-
 	@Override
 	public void onInitialize() {
 		// This code runs as soon as Minecraft is in a mod-load-ready state.
@@ -33,7 +32,7 @@ public class SoundMod implements ModInitializer {
 			MemorySegment src = MemorySegment.ofArray(data);
 			ResourceScope scope = ResourceScope.newConfinedScope();
 			MemorySegment cData = MemorySegment.allocateNative(data.length * 4L, scope);
-			MemorySegment.copy(src, 0,cData,0,data.length * 4L);
+			MemorySegment.copy(src,0,cData,0,data.length * 4L);
 			try {
 				Natives.getNativeHandle("test_fn2").invoke(cData.address(),data.length);
 			} catch (Throwable e) {
