@@ -6,8 +6,9 @@
   "mixins": [
   ],
   "client": [
-    "PalettedContainerAccessor",
     "ChunkSectionAccessor",
+    "PalettedContainerAccessor",
+    "SoundSystemMixin",
     "WorldChunkMixin"
   ],
   "injectors": {
