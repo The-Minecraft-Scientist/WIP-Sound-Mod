@@ -11,5 +11,4 @@ unsafe extern "C" fn test_fn1() -> f32 {
 #[no_mangle]
 unsafe extern "C" fn test_fn2(pointer: size_t, size: i32) {
     let array = unsafe {std::slice::from_raw_parts(pointer as *const i32, size as usize)};
-    println!("{:?}",array)
 }
