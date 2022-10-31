@@ -8,3 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 libc = "0.2.135"
+rodio = {version = "0.16.0",features=["symphonia","symphonia-vorbis"]}
