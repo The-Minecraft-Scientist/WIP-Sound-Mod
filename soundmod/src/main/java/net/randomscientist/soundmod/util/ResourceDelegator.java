@@ -6,17 +6,14 @@ import jdk.incubator.foreign.ResourceScope;
 import jdk.incubator.foreign.ValueLayout;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
-import net.randomscientist.soundmod.SoundMod;
-
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 
 public class ResourceDelegator {
-	public static HashMap<Long, BufferedInputStream> streams = new HashMap<>();
 	private static int counter = 0;
-
+	public static HashMap<Long, BufferedInputStream> streams = new HashMap<>();
 	public static int readStream(long id, MemoryAddress pointer, long size) {
 		byte[] arr;
 		int numRead;
@@ -46,7 +43,7 @@ public class ResourceDelegator {
 	}
 	public static long addResource(ResourceManager manager, Identifier id) {
 		counter++;
-		long uuid = id.hashCode() | ((long)counter) << 32;
+		long uuid = id.hashCode() | ((long) counter) << 32;
 		InputStream s0;
 		BufferedInputStream s;
 		try {

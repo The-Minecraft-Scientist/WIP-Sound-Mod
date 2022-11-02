@@ -12,6 +12,15 @@ import java.util.HashMap;
 import static jdk.incubator.foreign.ValueLayout.*;
 
 public class Natives {
+	public static GroupLayout RsSoundInstance = MemoryLayout.structLayout(
+			JAVA_LONG.withName("uuid"),
+			MemoryLayout.sequenceLayout(3,JAVA_DOUBLE).withName("position"),
+			JAVA_FLOAT.withName("volume"),
+			JAVA_FLOAT.withName("pitch"),
+			JAVA_BOOLEAN.withName("attenuate"),
+			JAVA_BOOLEAN.withName("playing")
+
+	);
 	private static final CLinker linker = CLinker.systemCLinker();
 	private static final HashMap<String,FunctionDescriptor> nativeMethods = new HashMap<String,FunctionDescriptor>(Map.of(
 			"test_fn1", FunctionDescriptor.of(JAVA_FLOAT),

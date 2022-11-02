@@ -1,11 +1,16 @@
+mod commands;
+
 extern crate libc;
 extern crate rodio;
 
-use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::io::SeekFrom::{Current, End, Start};
+use std::collections::HashMap;
+use std::io::{BufReader};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use libc::size_t;
 use rodio::{Decoder, OutputStream, Sink, Source};
+use crate::commands::{InputStreamRead, JavaInputStream, SoundCommand, SoundEditRequest, SoundInstance, SoundMessage};
+use crate::SoundMessage::{AddSound, EditSound, SetGroupVolumes};
 
 #[no_mangle]
 unsafe extern "C" fn test_fn1() -> f32 {
@@ -18,7 +23,7 @@ unsafe extern "C" fn test_fn2(pointer: size_t, size: i32) {
     let array = unsafe {std::slice::from_raw_parts(pointer as *const i32, size as usize)};
 }
 #[no_mangle]
-unsafe extern "C" fn play_input_stream(uuid: i64, read_ptr: InputStreamRead, seek_ptr: InputStreamSeek, available: i32) {
+unsafe extern "C" fn play_input_stream(uuid: i64, read_ptr: InputStreamRead, seek_ptr: commands::InputStreamSeek, available: i32) {
     let mut input_stream = JavaInputStream {
         uuid,
         read_ptr,
@@ -36,46 +41,60 @@ unsafe extern "C" fn play_input_stream(uuid: i64, read_ptr: InputStreamRead, see
         sink.sleep_until_end();
     });
 }
-#[derive(Copy, Clone)]
-pub struct JavaInputStream {
-    uuid: i64,
-    read_ptr: InputStreamRead,
-    seek_ptr: InputStreamSeek,
-    size: i32,
-    position: u64,
+struct SoundEngineState {
+    senders: HashMap<u64, Sender<SoundCommand>>,
+    volumes: HashMap<i32, f32>,
 }
-
-impl Read for JavaInputStream {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize,std::io::Error> {
-        let res = (self.read_ptr)(self.uuid,buf.as_mut_ptr(),buf.len());
-        if res>0 {
-            Ok(res as usize)
-        } else {
-            Ok(0)
+impl SoundEngineState {
+    fn new() -> SoundEngineState {
+        SoundEngineState {
+            senders: Default::default(),
+            volumes: Default::default(),
         }
+    }
+    fn process(&mut self, msg: SoundMessage) {
+        match msg {
+            AddSound(ins) => { self.add(ins) }
+            EditSound(req) => { self.edit(req) }
+            SetGroupVolumes(m) => {self.volumes = m}
+        }
+    }
+    fn edit(&mut self, req: SoundEditRequest) {
+        let sender = match self.senders.get(&req.uuid) {
+            Some(v) => {v}
+            None => {
+                println!("failed to get sender for uuid {}", &req.uuid);
+                return;
+            }
+        };
+        sender.send(req.command).expect("hopefully this doesnt fail");
+    }
+    fn add(&mut self, ins: SoundInstance) {
+        let uuid = ins.uuid.clone();
+        let (tx, rx) = channel::<SoundCommand>();
+        self.senders.insert(uuid,tx);
+        thread::spawn(move || {
+
+            for cmd in rx {
+
+            }
+        });
     }
 }
 
-impl Seek for JavaInputStream {
-    fn seek(&mut self, pos: SeekFrom) -> Result<u64,std::io::Error>{
-        match pos {
-            Start(pos) => {
-                self.position = (self.seek_ptr)(self.uuid,pos as i64) as u64
-            }
-            Current(off)=> {
-                let mut npos = self.position as i64 + off;
-                if npos<0 {npos = 0}
-                self.position = (self.seek_ptr)(self.uuid,npos) as u64
-            }
-            End(off) => {
-                let mut npos = self.size as i64 + off;
-                if npos<0 {npos = 0}
-                self.position = (self.seek_ptr)(self.uuid,npos) as u64
-            }
+unsafe extern "C" fn init() -> *mut Sender<SoundMessage> {
+    let (mut tx, rx) = channel::<SoundMessage>();
+    thread::spawn(move || {
+        let mut state = SoundEngineState::new();
+        for recv in rx {
+            state.process(msg);
         }
-        return Ok(self.position);
-    }
+    });
+    &mut tx as *mut Sender<SoundMessage>
 }
-
-type InputStreamRead = extern fn(i64,*mut u8,usize) -> i32;
-type InputStreamSeek = extern fn(i64,i64) -> i64;
+unsafe extern "C" fn add_sound(ptr: *mut Sender<SoundMessage>, ins: SoundInstance) -> *mut Sender<SoundMessage> {
+    let mut sender = ptr.read();
+    drop(ptr);
+    sender.send(AddSound(ins)).expect("failed to send AddSound command to worker thread");
+    &mut sender as *mut Sender<SoundMessage>
+}

@@ -1,11 +1,9 @@
 package net.randomscientist.soundmod.mixin;
 
-import jdk.incubator.foreign.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.sound.*;
 import net.minecraft.resource.ResourceManager;
-import net.randomscientist.soundmod.SoundMod;
 import net.randomscientist.soundmod.natives.Natives;
 import net.randomscientist.soundmod.util.ResourceDelegator;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,20 +32,6 @@ public abstract class SoundSystemMixin {
         if (sound.canPlay()) {
             sound.getSoundSet(MinecraftClient.getInstance().getSoundManager());
             Sound sound2 = sound.getSound();
-            /*
-            if(!this.listeners.isEmpty()) {
-                WeightedSoundSet weightedSoundSet = sound.getSoundSet(this.loader);
-                Vec3d vec3d = new Vec3d(sound.getX(), sound.getY(), sound.getZ());
-                float g = Math.max(sound.getVolume(), 1.0F) * (float)sound2.getAttenuation();
-                boolean bl = sound.isRelative();
-                boolean bl2 = bl || sound.getAttenuationType() == SoundInstance.AttenuationType.NONE || this.listener.getPos().squaredDistanceTo(vec3d) < (double)(g * g);
-                if (bl2) {
-                    Iterator var14 = this.listeners.iterator();
-                    while(var14.hasNext()) {
-                        SoundInstanceListener soundInstanceListener = (SoundInstanceListener)var14.next();
-                        soundInstanceListener.onSoundPlayed(sound, weightedSoundSet);
-                    }
-                }*/
             long uuid = ResourceDelegator.addResource(resourceManager, sound2.getLocation());
             MethodHandle playInputStream = Natives.getNativeHandle("play_input_stream");
             try {
