@@ -14,6 +14,7 @@ import static jdk.incubator.foreign.ValueLayout.*;
 public class Natives {
 	public static GroupLayout RsSoundInstance = MemoryLayout.structLayout(
 			JAVA_LONG.withName("uuid"),
+			JAVA_INT.withName("size"),
 			MemoryLayout.sequenceLayout(3,JAVA_DOUBLE).withName("position"),
 			JAVA_FLOAT.withName("volume"),
 			JAVA_FLOAT.withName("pitch"),

@@ -6,6 +6,7 @@ use std::io::SeekFrom::{Current, End, Start};
 #[repr(C)]
 pub struct SoundInstance {
     pub uuid: u64,
+    pub size: i32,
     pub position: [f64; 3],
     pub volume: f32,
     pub pitch: f32,
