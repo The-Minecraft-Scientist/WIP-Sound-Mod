@@ -7,5 +7,5 @@ pluginManagement.repositories {
     }
 }
 
-rootProject.name = "sound-mod-project"
+rootProject.name = "wip-sound-mod"
 include("soundmod-natives","soundmod")

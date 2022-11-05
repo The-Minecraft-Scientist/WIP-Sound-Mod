@@ -9,6 +9,7 @@
     "ChunkSectionAccessor",
     "PalettedContainerAccessor",
     "SoundSystemMixin",
+    "SourceMixin",
     "WorldChunkMixin"
   ],
   "injectors": {
