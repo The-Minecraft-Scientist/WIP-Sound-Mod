@@ -1,6 +1,6 @@
 # BST MC
 
-Now with Rust:crab::tm:
+Now with Rust:crab:™
 
 ## Current capabilities:
 
