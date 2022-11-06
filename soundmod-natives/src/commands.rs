@@ -2,6 +2,10 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::io::SeekFrom::{Current, End, Start};
+use kira::manager::backend::cpal::Error;
+use kira::sound::FromFileError;
+use kira::sound::static_sound::StaticSoundHandle;
+use kira::sound::streaming::StreamingSoundHandle;
 use symphonia::core::io::MediaSource;
 
 //See natives/Natives/RsSoundInstance
@@ -27,9 +31,14 @@ impl SoundInstance {
 }
 #[derive(Debug)]
 pub enum SoundMessage {
-    AddSound(SoundInstance),
+    AddStreaming(SoundInstance),
+    AddStatic(SoundInstance, Vec<u8>),
     EditSound(SoundEditRequest),
     SetGroupVolumes(HashMap<i32,f32>)
+}
+pub enum SoundHandle {
+    StaticHandle(StaticSoundHandle),
+    StreamingHandle(StreamingSoundHandle<FromFileError>)
 }
 
 #[repr(C)]

@@ -24,7 +24,8 @@ public class Natives {
 	private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
 	private static final HashMap<String,FunctionDescriptor> nativeMethods = new HashMap<String,FunctionDescriptor>(Map.of(
 			"init", FunctionDescriptor.of(ADDRESS, ADDRESS.withName("seek_ptr"),ADDRESS.withName("read_ptr")),
-			"add_sound", FunctionDescriptor.of(ADDRESS,ADDRESS.withName("sender"),RsSoundInstance)
+			"add_streaming", FunctionDescriptor.of(ADDRESS,ADDRESS.withName("sender"),RsSoundInstance),
+			"add_static", FunctionDescriptor.of(ADDRESS,ADDRESS.withName("sender"),RsSoundInstance,ADDRESS.withName("buf_ptr"),JAVA_LONG.withName("buf_size"))
 	));
 	private static final HashMap<String,MethodHandle> natives = new HashMap<String,MethodHandle>();
 	public static final HashMap<String, NativeSymbol> methods = new HashMap<String, NativeSymbol>(Map.of(

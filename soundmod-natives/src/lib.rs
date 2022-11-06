@@ -4,41 +4,59 @@ extern crate kira;
 extern crate core;
 extern crate symphonia;
 
-use std::borrow::BorrowMut;
+
 use std::collections::HashMap;
-use std::io::{BufReader, Cursor};
+use std::io::{Cursor};
+
+
+use std::sync::mpsc::{channel, Sender};
+use std::{thread};
 use std::ops::Deref;
-use std::sync::Arc;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread;
+
 use kira::manager::{AudioManager, AudioManagerSettings};
 use kira::manager::backend::cpal::{CpalBackend, Error};
-use kira::sound::FromFileError;
-use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle, StaticSoundSettings};
-use kira::sound::streaming::{StreamingSoundData, StreamingSoundHandle, StreamingSoundSettings};
+use kira::sound::{Sound, SoundData};
+use kira::sound::static_sound::{StaticSoundData, StaticSoundSettings};
+use kira::sound::streaming::{StreamingSoundData, StreamingSoundSettings};
 use kira::tween::Tween;
-use crate::commands::{InputStreamRead, InputStreamSeek, JavaInputStream, SoundCommand, SoundEditRequest, SoundInstance, SoundMessage};
-use crate::SoundMessage::{AddSound, EditSound, SetGroupVolumes};
+
+use crate::commands::{InputStreamRead, InputStreamSeek, SoundCommand, SoundEditRequest, SoundHandle, SoundInstance, SoundMessage};
+use crate::commands::SoundHandle::{StaticHandle, StreamingHandle};
+use crate::commands::SoundMessage::{AddStatic, AddStreaming, EditSound, SetGroupVolumes};
 //struct to track the state and status of an individual sound.
 pub struct SoundTracker {
     ins: SoundInstance,
-    sound: StreamingSoundHandle<FromFileError>,
+    sound: SoundHandle,
 }
 
 impl SoundTracker {
-    pub fn new(mut ins: SoundInstance, ptrs: (InputStreamRead, InputStreamSeek),manager: &mut AudioManager) -> SoundTracker {
+    pub fn add_streaming(mut ins: SoundInstance, ptrs: (InputStreamRead, InputStreamSeek),manager: &mut AudioManager) -> SoundTracker {
         let mut stream = ins.get_stream(ptrs);
         let sound_data = StreamingSoundData::from_seek_read(Box::new(stream),StreamingSoundSettings::new()).unwrap();
         println!("made sound data, from stream: {:?}, with manager with state: {:?}",stream, manager.state());
         SoundTracker {
             ins,
-            sound: manager.play(sound_data).unwrap()
+            sound: StreamingHandle(manager.play(sound_data).unwrap())
+        }
+    }
+    pub fn add_static(mut ins: SoundInstance, manager: &mut AudioManager, buf: Vec<u8>) -> SoundTracker {
+        let sound_data = StaticSoundData::from_cursor(Cursor::new(buf),StaticSoundSettings::new()).unwrap();
+        SoundTracker {
+            ins,
+            sound: StaticHandle(manager.play(sound_data).unwrap())
         }
     }
     pub fn proc_cmd(&mut self, cmd: SoundCommand) {
         match cmd {
             SoundCommand::Stop() => {
-                self.sound.stop(Tween::default()).expect("E moment")
+                match &mut self.sound {
+                    StaticHandle(handle) => {
+                        handle.stop(Tween::default())
+                    }
+                    StreamingHandle(handle) => {
+                        handle.stop(Tween::default())
+                    }
+                }.expect("failed to stop sound");
             }
             SoundCommand::ChangeLocation(l) => {
                 self.ins.position = l;
@@ -75,7 +93,8 @@ impl SoundEngineState {
 
     fn process(&mut self, msg: SoundMessage) {
         match msg {
-            AddSound(ins) => { self.add(ins) }
+            AddStatic(ins, buf) => { self.add_static(ins, buf) }
+            AddStreaming(ins) => { self.add_streaming(ins) }
             EditSound(req) => { self.edit(req) }
             SetGroupVolumes(m) => {self.volumes = m}
         }
@@ -92,9 +111,12 @@ impl SoundEngineState {
         tracker.proc_cmd(req.command);
     }
 
-    fn add(&mut self, mut ins: SoundInstance) {
-        let mut tracker = SoundTracker::new(ins,self.java_ptrs,&mut self.manager);
+    fn add_streaming(&mut self, mut ins: SoundInstance) {
+        let mut tracker = SoundTracker::add_streaming(ins,self.java_ptrs,&mut self.manager);
         self.trackers.insert(*&tracker.ins.uuid, tracker);
+    }
+    fn add_static(&mut self, mut ins: SoundInstance, buf: Vec<u8>) {
+        let mut tracker = SoundTracker::add_static(ins, &mut self.manager, buf);
     }
 
 }
@@ -105,7 +127,7 @@ unsafe extern "C" fn init(java_seek_ptr: InputStreamSeek, java_read_ptr: InputSt
     thread::spawn(move || {
         let mut state = SoundEngineState::new((java_read_ptr,java_seek_ptr));
         for recv in rx {
-            println!("received message! {:?}",&recv);
+            //println!("received message! {:?}",&recv);
             state.process(recv);
         }
     });
@@ -113,9 +135,21 @@ unsafe extern "C" fn init(java_seek_ptr: InputStreamSeek, java_read_ptr: InputSt
 }
 
 #[no_mangle]
-unsafe extern "C" fn add_sound(ptr: usize, ins: SoundInstance) -> usize {
+unsafe extern "C" fn add_streaming(ptr: usize, ins: SoundInstance) -> usize {
     let sender = (ptr as *mut Sender<SoundMessage>).read();
-    sender.send(AddSound(ins)).expect("failed to send AddSound command to worker thread");
+    sender.send(AddStreaming(ins)).expect("ERROR: sound thread crashed");
     let sender2 = sender.clone();
     Box::into_raw(Box::new(sender2)) as *mut Sender<SoundMessage> as usize
+}
+
+#[no_mangle]
+unsafe extern "C" fn add_static(ptr: usize, ins: SoundInstance, bufptr: usize, bufsize: usize) -> usize{
+    let sender = (ptr as *mut Sender<SoundMessage>).read();
+    let vec = Vec::from_raw_parts(bufptr as *mut u8,bufsize,bufsize);
+    sender.send(AddStatic(ins, vec)).expect("ERROR: sound thread crashed");
+    let sender2 = sender.clone();
+    Box::into_raw(Box::new(sender2)) as *mut Sender<SoundMessage> as usize
+}
+pub trait Handle {
+
 }
