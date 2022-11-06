@@ -4,4 +4,4 @@ Now with Rust:crab::tm:
 
 ## Current capabilities:
 
-Play Minecraft sounds from Rust with `rodio`
+Play Minecraft sounds from Rust with `kira`
