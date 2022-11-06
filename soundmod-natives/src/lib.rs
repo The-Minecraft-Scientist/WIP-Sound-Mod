@@ -132,6 +132,7 @@ unsafe extern "C" fn init(java_seek_ptr: InputStreamSeek, java_read_ptr: InputSt
         }
     });
     Box::into_raw(Box::new(tx)) as *mut Sender<SoundMessage> as usize
+
 }
 
 #[no_mangle]
