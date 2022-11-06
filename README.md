@@ -1,7 +1,7 @@
 # BST MC
 
-Now with Rust:crab::tm:
+Now with Rust:crab:™
 
 ## Current capabilities:
 
-Play Minecraft sounds from Rust with `rodio`
+Play Minecraft sounds from Rust with `kira`
