@@ -4,7 +4,6 @@ import jdk.incubator.foreign.*;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
-import net.randomscientist.soundmod.natives.Natives;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -16,7 +15,6 @@ import java.util.HashMap;
 import static net.randomscientist.soundmod.natives.Natives.*;
 
 public class ResourceDelegator {
-	private static int counter = 0;
 	public static HashMap<Long, BufferedInputStream> streams = new HashMap<>();
 	public static int readStream(long id, MemoryAddress pointer, long size) {
 		byte[] arr;

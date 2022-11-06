@@ -11,11 +11,10 @@ use std::io::{Cursor};
 
 use std::sync::mpsc::{channel, Sender};
 use std::{thread};
-use std::ops::Deref;
+
 
 use kira::manager::{AudioManager, AudioManagerSettings};
-use kira::manager::backend::cpal::{CpalBackend, Error};
-use kira::sound::{Sound, SoundData};
+use kira::manager::backend::cpal::{CpalBackend};
 use kira::sound::static_sound::{StaticSoundData, StaticSoundSettings};
 use kira::sound::streaming::{StreamingSoundData, StreamingSoundSettings};
 use kira::tween::Tween;
@@ -30,8 +29,8 @@ pub struct SoundTracker {
 }
 
 impl SoundTracker {
-    pub fn add_streaming(mut ins: SoundInstance, ptrs: (InputStreamRead, InputStreamSeek),manager: &mut AudioManager) -> SoundTracker {
-        let mut stream = ins.get_stream(ptrs);
+    pub fn add_streaming(ins: SoundInstance, ptrs: (InputStreamRead, InputStreamSeek),manager: &mut AudioManager) -> SoundTracker {
+        let stream = ins.get_stream(ptrs);
         let sound_data = StreamingSoundData::from_seek_read(Box::new(stream),StreamingSoundSettings::new()).unwrap();
         println!("made sound data, from stream: {:?}, with manager with state: {:?}",stream, manager.state());
         SoundTracker {
@@ -39,7 +38,7 @@ impl SoundTracker {
             sound: StreamingHandle(manager.play(sound_data).unwrap())
         }
     }
-    pub fn add_static(mut ins: SoundInstance, manager: &mut AudioManager, buf: Vec<u8>) -> SoundTracker {
+    pub fn add_static(ins: SoundInstance, manager: &mut AudioManager, buf: Vec<u8>) -> SoundTracker {
         let sound_data = StaticSoundData::from_cursor(Cursor::new(buf),StaticSoundSettings::new()).unwrap();
         SoundTracker {
             ins,
@@ -111,12 +110,12 @@ impl SoundEngineState {
         tracker.proc_cmd(req.command);
     }
 
-    fn add_streaming(&mut self, mut ins: SoundInstance) {
-        let mut tracker = SoundTracker::add_streaming(ins,self.java_ptrs,&mut self.manager);
+    fn add_streaming(&mut self, ins: SoundInstance) {
+        let tracker = SoundTracker::add_streaming(ins,self.java_ptrs,&mut self.manager);
         self.trackers.insert(*&tracker.ins.uuid, tracker);
     }
-    fn add_static(&mut self, mut ins: SoundInstance, buf: Vec<u8>) {
-        let mut tracker = SoundTracker::add_static(ins, &mut self.manager, buf);
+    fn add_static(&mut self, ins: SoundInstance, buf: Vec<u8>) {
+        let _tracker = SoundTracker::add_static(ins, &mut self.manager, buf);
     }
 
 }
