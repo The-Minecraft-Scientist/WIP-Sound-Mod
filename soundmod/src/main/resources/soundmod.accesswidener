@@ -1,4 +1,0 @@
-accessWidener	v2 named
-
-transitive-extendable class net/minecraft/client/sound/Source
-transitive-extendable method net/minecraft/client/sound/Source <init> (Ljava/lang/Integer;)Lnet/minecraft/sound/Source;
