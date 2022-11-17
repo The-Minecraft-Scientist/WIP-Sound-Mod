@@ -1,11 +1,7 @@
 package net.randomscientist.soundmod.mixin;
 
 import com.google.common.collect.Multimap;
-import jdk.incubator.foreign.MemoryAddress;
 import jdk.incubator.foreign.MemorySegment;
-import jdk.incubator.foreign.ResourceScope;
-import net.minecraft.SharedConstants;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.sound.*;
 import net.minecraft.resource.ResourceManager;
@@ -13,9 +9,6 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.randomscientist.soundmod.SoundMod;
-import net.randomscientist.soundmod.natives.Natives;
-import net.randomscientist.soundmod.util.ResourceDelegator;
-import org.slf4j.Marker;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
@@ -24,16 +17,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.invoke.MethodHandle;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
-import static net.minecraft.client.sound.SoundManager.MISSING_SOUND;
 import static net.randomscientist.soundmod.natives.Natives.createSoundStruct;
-import static net.randomscientist.soundmod.natives.Natives.sender;
 import static net.randomscientist.soundmod.util.ResourceDelegator.*;
 
 
@@ -72,20 +60,6 @@ public abstract class SoundSystemMixin {
      **/
 
     @Overwrite(aliases = "play")
-    /*public void play(SoundInstance sound) {
-        sound.getSoundSet(MinecraftClient.getInstance().getSoundManager());
-        if (sound.canPlay() && sound.getSound() != MISSING_SOUND) {
-            Sound sound2 = sound.getSound();
-            long uuid = ResourceDelegator.addResource(resourceManager, sound2.getLocation());
-            MethodHandle addSound = Natives.getNativeHandle("add_sound");
-            MemorySegment soundStruct = createSoundStruct(uuid,sound,ResourceDelegator.getSize(uuid));
-            try {
-                sender = (MemoryAddress) addSound.invoke(sender,soundStruct);
-            } catch (Throwable e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }*/
     public void play(SoundInstance sound) {
         if (sound.canPlay()) {
             WeightedSoundSet weightedSoundSet = sound.getSoundSet(this.loader);
@@ -117,11 +91,11 @@ public abstract class SoundSystemMixin {
                             long uuid = sound2.hashCode() | (long) this.counter << 32;
                             bl2 = shouldRepeatInstantly(sound);
                             boolean bl3 = sound2.isStreamed();
-                            SoundMod.LOGGER.info("Playing sound {} for event {}", sound2.getIdentifier(), identifier);
+                            //SoundMod.LOGGER.info("Playing sound {} for event {}", sound2.getIdentifier(), identifier);
                             this.soundEndTicks.put(sound, this.ticks + 20);
                             this.sources2.put(sound, uuid);
                             this.sounds.put(soundCategory, sound);
-                            // left as a reference
+                            // left as a reference for later
                             /* sourceManager.run((source) -> {
                                 source.setPitch(i);
                                 source.setVolume(h);

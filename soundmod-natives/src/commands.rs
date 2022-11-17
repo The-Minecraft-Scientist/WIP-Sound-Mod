@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::SeekFrom::{Current, End, Start};
 use std::io::{Read, Seek, SeekFrom};
+use std::sync::mpsc::Sender;
 
 use kira::sound::static_sound::StaticSoundHandle;
 use kira::sound::streaming::StreamingSoundHandle;
@@ -44,6 +45,13 @@ pub enum SoundMessage {
     SetGroupVolumes(HashMap<i32, f32>),
     Tick(),
 }
+#[derive(Debug)]
+pub struct SenderWrapper {
+    pub sender: Sender<SoundMessage>
+}
+//this is safe because SenderWrapper is always called from the thread that initialized it
+unsafe impl Sync for SenderWrapper {}
+
 pub enum SoundHandle {
     StaticHandle(StaticSoundHandle),
     StreamingHandle(StreamingSoundHandle<FromFileError>),

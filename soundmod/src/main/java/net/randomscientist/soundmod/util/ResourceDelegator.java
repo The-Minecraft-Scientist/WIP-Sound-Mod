@@ -44,12 +44,16 @@ public class ResourceDelegator {
 		}
 	}
 	public static void dropResource(long id) {
-		try {
-			streams.get(id).close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+		BufferedInputStream stream;
+		stream = streams.get(id);
+		if(stream != null) {
+			try {
+				stream.close();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			streams.remove(id);
 		}
-		streams.remove(id);
 	}
 	public static int readToJavaArray(long uuid, byte[] buf) {
 		try {
@@ -65,7 +69,7 @@ public class ResourceDelegator {
 			s0 = manager.open(id);
 			int len = s0.available();
 			s = new BufferedInputStream(s0,len+8191);
-			s.mark(len);
+			s.mark(len+8190);
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
@@ -78,10 +82,10 @@ public class ResourceDelegator {
 			throw new RuntimeException(e);
 		}
 	}
-	public static void tryLoadStatic(MemorySegment struct, MemoryAddress bufptr, long size) {
+	public static void tryLoadStatic(MemorySegment struct, MemoryAddress buf_ptr, long size) {
 		try {
 			MethodHandle addStaticHandle = getNativeHandle("add_static");
-			sender = (MemoryAddress) addStaticHandle.invoke(sender, struct, bufptr, size);
+			addStaticHandle.invoke(struct, buf_ptr, size);
 		} catch(Throwable e) {
 			throw new RuntimeException(e);
 		}
@@ -89,7 +93,7 @@ public class ResourceDelegator {
 	public static void tryLoadStreaming(MemorySegment struct) {
 		MethodHandle addStreamingHandle = getNativeHandle("add_streaming");
 		try {
-			sender = (MemoryAddress) addStreamingHandle.invoke(sender, struct);
+			addStreamingHandle.invoke(struct);
 		} catch(Throwable e) {
 			throw new RuntimeException(e);
 		}
@@ -97,7 +101,7 @@ public class ResourceDelegator {
 	public static void tryTick() {
 		MethodHandle tickHandle = getNativeHandle("tick");
 		try {
-			sender = (MemoryAddress) tickHandle.invoke(sender);
+			tickHandle.invoke();
 		} catch(Throwable e) {
 			throw new RuntimeException(e);
 		}

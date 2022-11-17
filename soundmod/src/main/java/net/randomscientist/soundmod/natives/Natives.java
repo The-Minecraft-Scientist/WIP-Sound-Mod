@@ -30,10 +30,10 @@ public class Natives {
 	private static final CLinker linker = CLinker.systemCLinker();
 	private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
 	private static final HashMap<String,FunctionDescriptor> nativeMethods = new HashMap<String,FunctionDescriptor>(Map.of(
-			"init", FunctionDescriptor.of(ADDRESS, RsJavaCallbacks),
-			"add_streaming", FunctionDescriptor.of(ADDRESS,ADDRESS.withName("sender"),RsSoundInstance),
-			"add_static", FunctionDescriptor.of(ADDRESS,ADDRESS.withName("sender"),RsSoundInstance,ADDRESS.withName("buf_ptr"),JAVA_LONG.withName("buf_size")),
-			"tick", FunctionDescriptor.of(ADDRESS,ADDRESS.withName("sender"))
+			"init", FunctionDescriptor.ofVoid(RsJavaCallbacks),
+			"add_streaming", FunctionDescriptor.ofVoid(RsSoundInstance),
+			"add_static", FunctionDescriptor.ofVoid(RsSoundInstance,ADDRESS.withName("buf_ptr"),JAVA_LONG.withName("buf_size")),
+			"tick", FunctionDescriptor.ofVoid()
 	));
 	private static final HashMap<String,MethodHandle> natives = new HashMap<String,MethodHandle>();
 	public static final HashMap<String, NativeSymbol> callbacks = new HashMap<String, NativeSymbol>(Map.of(
@@ -41,7 +41,6 @@ public class Natives {
 			"seekStream", tryGenerateNativeSymbol(ResourceDelegator.class, "seekStream", FunctionDescriptor.of(JAVA_LONG,JAVA_LONG,JAVA_LONG)),
 			"dropResource", tryGenerateNativeSymbol(ResourceDelegator.class, "dropResource", FunctionDescriptor.ofVoid(JAVA_LONG))
 	));
-	public static MemoryAddress sender;
 	private static NativeSymbol tryGenerateNativeSymbol(Class c,String name, FunctionDescriptor desc) {
 		MethodHandle handle;
 		try {
@@ -72,7 +71,7 @@ public class Natives {
 	public static VarHandle ofName(GroupLayout struct, String name) {
 		return struct.varHandle(MemoryLayout.PathElement.groupElement(name));
 	}
-	public static MemorySegment createCallbackStruct() {
+	public static MemorySegment createCallbacksStruct() {
 		MemorySegment struct = MemorySegment.allocateNative(RsJavaCallbacks.byteSize(), ResourceScope.globalScope());
 		VarHandle read = ofName(RsJavaCallbacks, "read");
 		VarHandle seek = ofName(RsJavaCallbacks, "seek");
@@ -97,16 +96,12 @@ public class Natives {
 				}
 		);
 		try {
-			MemorySegment struct = createCallbackStruct();
-			sender = (MemoryAddress) natives.get("init").invoke(struct);
-		} catch (Throwable e) {
+			getNativeHandle("init").invoke(createCallbacksStruct());
+		} catch(Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
 	public static MethodHandle getNativeHandle(String id) {
 		return natives.get(id);
-	}
-	public static NativeSymbol getMethodSymbol(String id) {
-		return  callbacks.get(id);
 	}
 }

@@ -1,8 +1,5 @@
 mod commands;
 
-extern crate core;
-extern crate kira;
-extern crate symphonia;
 
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -15,17 +12,18 @@ use kira::manager::{AudioManager, AudioManagerSettings};
 use kira::sound::static_sound::{PlaybackState, StaticSoundData, StaticSoundSettings};
 use kira::sound::streaming::{StreamingSoundData, StreamingSoundSettings};
 use kira::tween::Tween;
+use once_cell::sync::OnceCell;
 
 use crate::commands::SoundHandle::{StaticHandle, StreamingHandle};
 use crate::commands::SoundMessage::{AddStatic, AddStreaming, EditSound, SetGroupVolumes, Tick};
-use crate::commands::{InputStreamRead, InputStreamSeek, JavaCallbacks, SoundCommand, SoundEditRequest, SoundHandle, SoundInstance, SoundMessage};
+use crate::commands::{InputStreamRead, InputStreamSeek, JavaCallbacks, SenderWrapper, SoundCommand, SoundEditRequest, SoundHandle, SoundInstance, SoundMessage};
 //struct to track the state and status of an individual sound.
-pub struct SoundTracker {
+pub struct SoundTracker{
     ins: SoundInstance,
     sound: SoundHandle,
 }
 
-impl SoundTracker {
+impl SoundTracker{
     pub fn add_streaming(
         ins: SoundInstance,
         ptrs: (InputStreamRead, InputStreamSeek),
@@ -52,19 +50,19 @@ impl SoundTracker {
             sound: StaticHandle(manager.play(sound_data).unwrap()),
         }
     }
-    pub fn proc_cmd(&mut self, cmd: SoundCommand) {
-        match cmd {
-            SoundCommand::Stop() => {
+    pub fn proc_cmd(&mut self, cmd: SoundCommand){
+        match cmd{
+            SoundCommand::Stop() =>{
                 match &mut self.sound {
                     StaticHandle(handle) => handle.stop(Tween::default()),
                     StreamingHandle(handle) => handle.stop(Tween::default()),
                 }
                 .expect("failed to stop sound");
             }
-            SoundCommand::ChangeLocation(l) => {
+            SoundCommand::ChangeLocation(l) =>{
                 self.ins.position = l;
             }
-            SoundCommand::ChangeVolume(v) => {
+            SoundCommand::ChangeVolume(v) =>{
                 self.ins.volume = v;
             }
             _ => {}
@@ -75,7 +73,7 @@ impl SoundTracker {
 }
 
 //state for the SoundEngine
-struct SoundEngineState {
+struct SoundEngineState{
     trackers: HashMap<u64, SoundTracker>,
     volumes: HashMap<i32, f32>,
     callbacks: JavaCallbacks,
@@ -83,7 +81,7 @@ struct SoundEngineState {
 }
 
 impl SoundEngineState {
-    fn new(callbacks: JavaCallbacks) -> SoundEngineState {
+    fn new(callbacks: JavaCallbacks) -> SoundEngineState{
         SoundEngineState {
             trackers: Default::default(),
             volumes: Default::default(),
@@ -93,7 +91,7 @@ impl SoundEngineState {
         }
     }
 
-    fn process(&mut self, msg: SoundMessage) {
+    fn process(&mut self, msg: SoundMessage){
         match msg {
             AddStatic(ins, buf) => self.add_static(ins, buf),
             AddStreaming(ins) => self.add_streaming(ins),
@@ -102,7 +100,7 @@ impl SoundEngineState {
             Tick() => self.tick(),
         }
     }
-    fn tick(&mut self) {
+    fn tick(&mut self){
         let mut to_remove: Vec<u64> = Default::default();
         for tracker in &self.trackers {
             let state = match &tracker.1.sound {
@@ -115,7 +113,7 @@ impl SoundEngineState {
             }
         }
     }
-    fn edit(&mut self, req: SoundEditRequest) {
+    fn edit(&mut self, req: SoundEditRequest){
         let tracker = match self.trackers.get_mut(&req.uuid) {
             Some(v) => v,
             None => {
@@ -126,7 +124,7 @@ impl SoundEngineState {
         tracker.proc_cmd(req.command);
     }
 
-    fn add_streaming(&mut self, ins: SoundInstance) {
+    fn add_streaming(&mut self, ins: SoundInstance){
         let tracker = SoundTracker::add_streaming(ins, (self.callbacks.read,self.callbacks.seek), &mut self.manager);
         self.trackers.insert(*&tracker.ins.uuid, tracker);
     }
@@ -134,9 +132,11 @@ impl SoundEngineState {
         let _tracker = SoundTracker::add_static(ins, &mut self.manager, buf);
     }
 }
-// mass abuse of
+// this is the "base" mpsc Sender. We clone it, send messages with the clone, and then drop it, but never use it directly
+static SENDER: OnceCell<SenderWrapper> = OnceCell::new();
+
 #[no_mangle]
-unsafe extern "C" fn init(cbs:JavaCallbacks) -> usize {
+extern "C" fn init(cbs:JavaCallbacks){
     let (tx, rx) = channel::<SoundMessage>();
     thread::spawn(move || {
         let mut state = SoundEngineState::new(cbs);
@@ -144,39 +144,33 @@ unsafe extern "C" fn init(cbs:JavaCallbacks) -> usize {
             state.process(recv);
         }
     });
-    Box::into_raw(Box::new(tx)) as *mut Sender<SoundMessage> as usize
+    SENDER.set(SenderWrapper{sender: tx}).unwrap();
 }
 
 #[no_mangle]
-unsafe extern "C" fn add_streaming(ptr: usize, ins: SoundInstance) -> usize {
-    let sender = (ptr as *mut Sender<SoundMessage>).read();
-    sender
-        .send(AddStreaming(ins))
-        .expect("ERROR: sound thread crashed");
-    let sender2 = sender.clone();
-    Box::into_raw(Box::new(sender2)) as *mut Sender<SoundMessage> as usize
+extern "C" fn add_streaming(ins: SoundInstance){
+    send_message(AddStreaming(ins));
 }
 
 #[no_mangle]
 unsafe extern "C" fn add_static(
-    ptr: usize,
     ins: SoundInstance,
-    buf_ptr: usize,
-    buf_size: usize,
-) -> usize {
-    let sender = (ptr as *mut Sender<SoundMessage>).read();
-    let buf = slice::from_raw_parts(buf_ptr as *mut u8, buf_size);
-    sender
-        .send(AddStatic(ins, buf.to_vec()))
-        .expect("ERROR: sound thread crashed");
-    let sender2 = sender.clone();
-    Box::into_raw(Box::new(sender2)) as *mut Sender<SoundMessage> as usize
+    buf_ptr: *const (),
+    buf_size: u64,
+){
+    let buf = slice::from_raw_parts(buf_ptr as *mut u8, buf_size as usize);
+    send_message(AddStatic(ins, buf.to_vec()));
 }
 
 #[no_mangle]
-unsafe extern "C" fn tick(ptr: usize) -> usize {
-    let sender = (ptr as *mut Sender<SoundMessage>).read();
-    sender.send(Tick()).expect("ERROR: sound thread crashed");
-    let sender2 = sender.clone();
-    Box::into_raw(Box::new(sender2)) as *mut Sender<SoundMessage> as usize
+extern "C" fn tick(){
+    send_message(Tick())
+}
+
+pub fn send_message(message: SoundMessage){
+    SENDER.get().expect("Sender not initialized!")
+        .sender
+        .clone()
+        .send(message)
+        .expect("ERROR: Sound Thread Crashed!");
 }

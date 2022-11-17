@@ -9,5 +9,6 @@ crate-type = ["cdylib"]
 [dependencies]
 kira = "0.7.0"
 symphonia = "0.5.1"
+once_cell = "1.16.0"
 [patch.crates-io]
 kira = {path = "/Users/charles/Desktop/coding-stuff/kira/crates/kira"}
