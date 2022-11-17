@@ -8,20 +8,17 @@ use std::collections::HashMap;
 use std::io::Cursor;
 
 use std::sync::mpsc::{channel, Sender};
-use std::thread;
+use std::{slice, thread};
 
 use kira::manager::backend::cpal::CpalBackend;
 use kira::manager::{AudioManager, AudioManagerSettings};
-use kira::sound::static_sound::{StaticSoundData, StaticSoundSettings};
+use kira::sound::static_sound::{PlaybackState, StaticSoundData, StaticSoundSettings};
 use kira::sound::streaming::{StreamingSoundData, StreamingSoundSettings};
 use kira::tween::Tween;
 
 use crate::commands::SoundHandle::{StaticHandle, StreamingHandle};
-use crate::commands::SoundMessage::{AddStatic, AddStreaming, EditSound, SetGroupVolumes};
-use crate::commands::{
-    InputStreamRead, InputStreamSeek, SoundCommand, SoundEditRequest, SoundHandle, SoundInstance,
-    SoundMessage,
-};
+use crate::commands::SoundMessage::{AddStatic, AddStreaming, EditSound, SetGroupVolumes, Tick};
+use crate::commands::{InputStreamRead, InputStreamSeek, JavaCallbacks, SoundCommand, SoundEditRequest, SoundHandle, SoundInstance, SoundMessage};
 //struct to track the state and status of an individual sound.
 pub struct SoundTracker {
     ins: SoundInstance,
@@ -36,13 +33,8 @@ impl SoundTracker {
     ) -> SoundTracker {
         let stream = ins.get_stream(ptrs);
         let sound_data =
-            StreamingSoundData::from_seek_read(Box::new(stream), StreamingSoundSettings::new())
+            StreamingSoundData::from_media_source(Box::new(stream), StreamingSoundSettings::new())
                 .unwrap();
-        println!(
-            "made sound data, from stream: {:?}, with manager with state: {:?}",
-            stream,
-            manager.state()
-        );
         SoundTracker {
             ins,
             sound: StreamingHandle(manager.play(sound_data).unwrap()),
@@ -86,18 +78,18 @@ impl SoundTracker {
 struct SoundEngineState {
     trackers: HashMap<u64, SoundTracker>,
     volumes: HashMap<i32, f32>,
-    java_ptrs: (InputStreamRead, InputStreamSeek),
+    callbacks: JavaCallbacks,
     manager: AudioManager,
 }
 
 impl SoundEngineState {
-    fn new(java_ptrs: (InputStreamRead, InputStreamSeek)) -> SoundEngineState {
+    fn new(callbacks: JavaCallbacks) -> SoundEngineState {
         SoundEngineState {
             trackers: Default::default(),
             volumes: Default::default(),
-            java_ptrs,
+            callbacks,
             manager: AudioManager::<CpalBackend>::new(AudioManagerSettings::default())
-                .expect("oops"),
+                .expect("failed to create new AudioManager"),
         }
     }
 
@@ -107,9 +99,22 @@ impl SoundEngineState {
             AddStreaming(ins) => self.add_streaming(ins),
             EditSound(req) => self.edit(req),
             SetGroupVolumes(m) => self.volumes = m,
+            Tick() => self.tick(),
         }
     }
-
+    fn tick(&mut self) {
+        let mut to_remove: Vec<u64> = Default::default();
+        for tracker in &self.trackers {
+            let state = match &tracker.1.sound {
+                StaticHandle(handle) => handle.state(),
+                StreamingHandle(handle) => handle.state(),
+            };
+            if state == PlaybackState::Stopped {
+                to_remove.push(*tracker.0);
+                (self.callbacks.drop)(*tracker.0);
+            }
+        }
+    }
     fn edit(&mut self, req: SoundEditRequest) {
         let tracker = match self.trackers.get_mut(&req.uuid) {
             Some(v) => v,
@@ -122,7 +127,7 @@ impl SoundEngineState {
     }
 
     fn add_streaming(&mut self, ins: SoundInstance) {
-        let tracker = SoundTracker::add_streaming(ins, self.java_ptrs, &mut self.manager);
+        let tracker = SoundTracker::add_streaming(ins, (self.callbacks.read,self.callbacks.seek), &mut self.manager);
         self.trackers.insert(*&tracker.ins.uuid, tracker);
     }
     fn add_static(&mut self, ins: SoundInstance, buf: Vec<u8>) {
@@ -131,12 +136,11 @@ impl SoundEngineState {
 }
 // janky shit
 #[no_mangle]
-unsafe extern "C" fn init(java_seek_ptr: InputStreamSeek, java_read_ptr: InputStreamRead) -> usize {
+unsafe extern "C" fn init(cbs:JavaCallbacks) -> usize {
     let (tx, rx) = channel::<SoundMessage>();
     thread::spawn(move || {
-        let mut state = SoundEngineState::new((java_read_ptr, java_seek_ptr));
+        let mut state = SoundEngineState::new(cbs);
         for recv in rx {
-            //println!("received message! {:?}",&recv);
             state.process(recv);
         }
     });
@@ -161,11 +165,17 @@ unsafe extern "C" fn add_static(
     bufsize: usize,
 ) -> usize {
     let sender = (ptr as *mut Sender<SoundMessage>).read();
-    let vec = Vec::from_raw_parts(bufptr as *mut u8, bufsize, bufsize);
+    let buf = slice::from_raw_parts(bufptr as *mut u8, bufsize);
     sender
-        .send(AddStatic(ins, vec))
+        .send(AddStatic(ins, buf.to_vec()))
         .expect("ERROR: sound thread crashed");
     let sender2 = sender.clone();
     Box::into_raw(Box::new(sender2)) as *mut Sender<SoundMessage> as usize
 }
-pub trait Handle {}
+#[no_mangle]
+unsafe extern "C" fn tick(ptr: usize) -> usize {
+    let sender = (ptr as *mut Sender<SoundMessage>).read();
+    sender.send(Tick()).expect("ERROR: sound thread crashed");
+    let sender2 = sender.clone();
+    Box::into_raw(Box::new(sender2)) as *mut Sender<SoundMessage> as usize
+}

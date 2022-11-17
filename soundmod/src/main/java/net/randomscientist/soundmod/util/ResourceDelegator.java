@@ -43,6 +43,14 @@ public class ResourceDelegator {
 			throw new RuntimeException(e);
 		}
 	}
+	public static void dropResource(long id) {
+		try {
+			streams.get(id).close();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		streams.remove(id);
+	}
 	public static int readToJavaArray(long uuid, byte[] buf) {
 		try {
 			return streams.get(uuid).read(buf);
@@ -70,26 +78,6 @@ public class ResourceDelegator {
 			throw new RuntimeException(e);
 		}
 	}
-	public static MemorySegment createSoundStruct(long id, SoundInstance instance, int size) {
-		MemorySegment struct = MemorySegment.allocateNative(RsSoundInstance.byteSize(), ResourceScope.globalScope());
-		VarHandle uuid = ofName(RsSoundInstance,"uuid");
-		VarHandle sizeh = ofName(RsSoundInstance,"size");
-		VarHandle position = RsSoundInstance.varHandle(MemoryLayout.PathElement.groupElement("position"),MemoryLayout.PathElement.sequenceElement(0,1));
-		VarHandle volume = ofName(RsSoundInstance,"volume");
-		VarHandle pitch = ofName(RsSoundInstance,"pitch");
-
-		uuid.set(struct,id);
-		sizeh.set(struct,size);
-		position.set(struct,0, instance.getX());
-		position.set(struct,1, instance.getY());
-		position.set(struct,2, instance.getZ());
-		volume.set(struct, instance.getVolume());
-		pitch.set(struct, instance.getPitch());
-		return struct;
-	}
-	public static VarHandle ofName(GroupLayout struct, String name) {
-		return struct.varHandle(MemoryLayout.PathElement.groupElement(name));
-	}
 	public static void tryLoadStatic(MemorySegment struct, MemoryAddress bufptr, long size) {
 		try {
 			MethodHandle addStaticHandle = getNativeHandle("add_static");
@@ -102,6 +90,14 @@ public class ResourceDelegator {
 		MethodHandle addStreamingHandle = getNativeHandle("add_streaming");
 		try {
 			sender = (MemoryAddress) addStreamingHandle.invoke(sender, struct);
+		} catch(Throwable e) {
+			throw new RuntimeException(e);
+		}
+	}
+	public static void tryTick() {
+		MethodHandle tickHandle = getNativeHandle("tick");
+		try {
+			sender = (MemoryAddress) tickHandle.invoke(sender);
 		} catch(Throwable e) {
 			throw new RuntimeException(e);
 		}

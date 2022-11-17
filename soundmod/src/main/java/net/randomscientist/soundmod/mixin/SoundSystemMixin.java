@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static net.minecraft.client.sound.SoundManager.MISSING_SOUND;
+import static net.randomscientist.soundmod.natives.Natives.createSoundStruct;
 import static net.randomscientist.soundmod.natives.Natives.sender;
 import static net.randomscientist.soundmod.util.ResourceDelegator.*;
 
@@ -46,10 +47,8 @@ public abstract class SoundSystemMixin {
     @Shadow @Final private List<SoundInstanceListener> listeners;
     @Shadow @Final private SoundListener listener;
     @Shadow @Final private Map<SoundInstance, Integer> soundEndTicks;
-    @Shadow @Final private Map<SoundInstance, Channel.SourceManager> sources;
     @Shadow @Final private Multimap<SoundCategory, SoundInstance> sounds;
     @Shadow @Final private List<TickableSoundInstance> tickingSounds;
-	@Shadow @Final private Channel channel;
 	@Shadow private int ticks;
 
     @Shadow(aliases="shouldRepeatInstantly")
@@ -59,6 +58,10 @@ public abstract class SoundSystemMixin {
     @Inject(at = @At("TAIL"), method = "<init>")
     public void SoundSystem(SoundManager loader, GameOptions settings, ResourceManager resourceManager, CallbackInfo ci) {
         this.resourceManager = resourceManager;
+    }
+    @Inject(at = @At("HEAD"), method = "tick()V")
+    public void tick(CallbackInfo ci) {
+        tryTick();
     }
     private HashMap<SoundInstance, Long> sources2 = new HashMap<>();
     private int counter;

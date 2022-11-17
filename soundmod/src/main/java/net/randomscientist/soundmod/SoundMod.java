@@ -33,6 +33,7 @@ public class SoundMod implements ModInitializer {
 			ResourceScope scope = ResourceScope.newConfinedScope();
 			MemorySegment cData = MemorySegment.allocateNative(data.length * 4L, scope);
 			MemorySegment.copy(src,0,cData,0,data.length * 4L);
+			SoundMod.LOGGER.info(String.valueOf(data.length));
 		});
 	}
 }

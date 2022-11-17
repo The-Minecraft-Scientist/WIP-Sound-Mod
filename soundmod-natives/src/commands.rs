@@ -28,12 +28,21 @@ impl SoundInstance {
         }
     }
 }
+
+#[repr(C)]
+pub struct JavaCallbacks {
+    pub read: InputStreamRead,
+    pub seek: InputStreamSeek,
+    pub drop: ResourceDelegatorDrop,
+}
+
 #[derive(Debug)]
 pub enum SoundMessage {
     AddStreaming(SoundInstance),
     AddStatic(SoundInstance, Vec<u8>),
     EditSound(SoundEditRequest),
     SetGroupVolumes(HashMap<i32, f32>),
+    Tick(),
 }
 pub enum SoundHandle {
     StaticHandle(StaticSoundHandle),
@@ -117,3 +126,5 @@ impl MediaSource for JavaInputStream {
 pub type InputStreamRead = extern "C" fn(u64, *mut u8, usize) -> i32;
 
 pub type InputStreamSeek = extern "C" fn(u64, u64) -> u64;
+
+pub type ResourceDelegatorDrop = extern "C" fn(u64);
