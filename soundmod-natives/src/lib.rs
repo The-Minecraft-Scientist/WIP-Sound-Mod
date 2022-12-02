@@ -132,9 +132,9 @@ impl SoundEngineState {
         let _tracker = SoundTracker::add_static(ins, &mut self.manager, buf);
     }
 }
-// this is the "base" mpsc Sender. We clone it, send messages with the clone, and then drop it, but never use it directly
+// this is the "base" mpsc Sender. We clone it, send messages with the clone, and then drop the clone, but never use it directly
 static SENDER: OnceCell<SenderWrapper> = OnceCell::new();
-
+// runs a simple event loop thread that listens on our channel
 #[no_mangle]
 extern "C" fn init(cbs:JavaCallbacks){
     let (tx, rx) = channel::<SoundMessage>();
@@ -168,8 +168,7 @@ extern "C" fn tick(){
 }
 
 pub fn send_message(message: SoundMessage){
-    SENDER.get().expect("Sender not initialized!")
-        .sender
+    SENDER.get().expect("Sender not initialized!").sender
         .clone()
         .send(message)
         .expect("ERROR: Sound Thread Crashed!");

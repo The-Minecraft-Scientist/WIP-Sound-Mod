@@ -124,7 +124,7 @@ impl Seek for JavaInputStream {
 }
 impl MediaSource for JavaInputStream {
     fn is_seekable(&self) -> bool {
-        false
+        true
     }
     fn byte_len(&self) -> Option<u64> {
         Some(self.size as u64)

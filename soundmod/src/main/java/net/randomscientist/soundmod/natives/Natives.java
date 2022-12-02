@@ -5,7 +5,6 @@ import net.minecraft.client.sound.SoundInstance;
 import net.randomscientist.soundmod.SoundMod;
 import net.randomscientist.soundmod.util.ResourceDelegator;
 
-import java.lang.annotation.Native;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;

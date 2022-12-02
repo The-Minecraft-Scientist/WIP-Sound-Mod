@@ -34,31 +34,34 @@ public abstract class WorldChunkMixin extends Chunk implements WorldChunkAccesso
     public ArrayList<Integer> getSoundScene() {
         return this.soundScene;
     }
+
+    final ArrayList<Integer> FULL_SECTION = new ArrayList<Integer>(Arrays.asList(-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1));
+    final ArrayList<Integer> EMPTY_SECTION = new ArrayList<Integer>(Arrays.asList(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0));
+
     public void buildSoundScene() {
-        final ArrayList<Integer> fullSection = new ArrayList<Integer>(Arrays.asList(-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1));
-        final ArrayList<Integer> emptySection = new ArrayList<Integer>(Arrays.asList(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0));
         ChunkSection[] sectionArray = super.sectionArray;
         for (int i = 0; i < (320/16); i++) {
             ChunkSection section = sectionArray[i];
             if (section.isEmpty()) {
-                soundScene.addAll(emptySection);
+                soundScene.addAll(EMPTY_SECTION);
                 continue;
             }
             if (4096 == ((ChunkSectionAccessor) section).nonEmptyBlocks()) {
-                soundScene.addAll(fullSection);
+                soundScene.addAll(FULL_SECTION);
                 continue;
             }
             PalettedContainerAccessor<BlockState> statesGettable = ((PalettedContainerAccessor<BlockState>) section.getBlockStateContainer());
-            for (int j=0;j<16*8;j++) {
-                int s=0;
-                for (int k=0;k<32;k++) {
-                    Material bl=statesGettable.invokeGet(j+k).getMaterial();
-                    int ref=(bl.isSolid()||bl.blocksLight())?1:0;
-                    s=s<<1|ref;
+            {
+                for (int j=0;j<16*8;j++) {
+                    int s=0;
+                    for (int k=0;k<32;k++) {
+                        Material bl=statesGettable.invokeGet(j+k).getMaterial();
+                        int ref=(bl.isSolid()||bl.blocksLight())?1:0;
+                        s=s<<1|ref;
+                    }
+                    soundScene.add(s);
                 }
-                soundScene.add(s);
             }
-
         }
     }
     @Inject(method="loadFromPacket", at=@At("TAIL"))
