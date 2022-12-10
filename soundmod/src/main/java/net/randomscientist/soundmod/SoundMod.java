@@ -12,6 +12,8 @@ import net.randomscientist.soundmod.scene.Scene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+
 public class SoundMod implements ModInitializer {
 	// This logger is used to write text to the console and the log file.
 	// It is considered best practice to use your mod id as the logger's name.
@@ -33,7 +35,7 @@ public class SoundMod implements ModInitializer {
 			ResourceScope scope = ResourceScope.newConfinedScope();
 			MemorySegment cData = MemorySegment.allocateNative(data.length * 4L, scope);
 			MemorySegment.copy(src,0,cData,0,data.length * 4L);
-			SoundMod.LOGGER.info(String.valueOf(data.length));
+			SoundMod.LOGGER.info(Arrays.toString(data));
 		});
 	}
 }
