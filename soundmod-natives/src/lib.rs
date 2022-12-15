@@ -16,7 +16,7 @@ use once_cell::sync::OnceCell;
 
 use crate::commands::SoundHandle::{StaticHandle, StreamingHandle};
 use crate::commands::SoundMessage::{AddStatic, AddStreaming, EditSound, SetGroupVolumes, Tick};
-use crate::commands::{InputStreamRead, InputStreamSeek, JavaCallbacks, SenderWrapper, SoundCommand, SoundEditRequest, SoundHandle, SoundInstance, SoundMessage};
+use crate::commands::{JavaCallbacks, SenderWrapper, SoundCommand, SoundEditRequest, SoundHandle, SoundInstance, SoundMessage};
 //struct to track the state and status of an individual sound.
 pub struct SoundTracker{
     ins: SoundInstance,
@@ -26,13 +26,11 @@ pub struct SoundTracker{
 impl SoundTracker{
     pub fn add_streaming(
         ins: SoundInstance,
-        ptrs: (InputStreamRead, InputStreamSeek),
         manager: &mut AudioManager,
     ) -> SoundTracker {
-        let stream = ins.get_stream(ptrs);
+        let stream = ins.get_stream();
         let sound_data =
-            StreamingSoundData::from_media_source(Box::new(stream), StreamingSoundSettings::new())
-                .unwrap();
+            StreamingSoundData::from_media_source(Box::new(stream), StreamingSoundSettings::new()).unwrap();
         SoundTracker {
             ins,
             sound: StreamingHandle(manager.play(sound_data).unwrap()),
@@ -76,16 +74,14 @@ impl SoundTracker{
 struct SoundEngineState{
     trackers: HashMap<u64, SoundTracker>,
     volumes: HashMap<i32, f32>,
-    callbacks: JavaCallbacks,
     manager: AudioManager,
 }
 
 impl SoundEngineState {
-    fn new(callbacks: JavaCallbacks) -> SoundEngineState{
+    fn new() -> SoundEngineState{
         SoundEngineState {
             trackers: Default::default(),
             volumes: Default::default(),
-            callbacks,
             manager: AudioManager::<CpalBackend>::new(AudioManagerSettings::default())
                 .expect("failed to create new AudioManager"),
         }
@@ -102,6 +98,7 @@ impl SoundEngineState {
     }
     fn tick(&mut self){
         let mut to_remove: Vec<u64> = Default::default();
+        let drop_ptr = CALLBACKS.get().unwrap().drop;
         for tracker in &self.trackers {
             let state = match &tracker.1.sound {
                 StaticHandle(handle) => handle.state(),
@@ -109,8 +106,11 @@ impl SoundEngineState {
             };
             if state == PlaybackState::Stopped {
                 to_remove.push(*tracker.0);
-                (self.callbacks.drop)(*tracker.0);
+                (drop_ptr)(*tracker.0);
             }
+        }
+        for id in to_remove {
+            self.trackers.remove(&id);
         }
     }
     fn edit(&mut self, req: SoundEditRequest){
@@ -125,7 +125,7 @@ impl SoundEngineState {
     }
 
     fn add_streaming(&mut self, ins: SoundInstance){
-        let tracker = SoundTracker::add_streaming(ins, (self.callbacks.read,self.callbacks.seek), &mut self.manager);
+        let tracker = SoundTracker::add_streaming(ins,  &mut self.manager);
         self.trackers.insert(*&tracker.ins.uuid, tracker);
     }
     fn add_static(&mut self, ins: SoundInstance, buf: Vec<u8>) {
@@ -134,16 +134,19 @@ impl SoundEngineState {
 }
 // this is the "base" mpsc Sender. We clone it, send messages with the clone, and then drop the clone, but never use it directly
 static SENDER: OnceCell<SenderWrapper> = OnceCell::new();
+// stores all of the callbacks we need to make back to the Minecraft side of things, mostly to drop old InputStreams from the hashmap of loaded ones
+static CALLBACKS: OnceCell<JavaCallbacks> = OnceCell::new();
 // runs a simple event loop thread that listens on our channel
 #[no_mangle]
 extern "C" fn init(cbs:JavaCallbacks){
     let (tx, rx) = channel::<SoundMessage>();
     thread::spawn(move || {
-        let mut state = SoundEngineState::new(cbs);
+        let mut state = SoundEngineState::new();
         for recv in rx {
             state.process(recv);
         }
     });
+    CALLBACKS.set(cbs).expect("failed to set callback static");
     SENDER.set(SenderWrapper{sender: tx}).unwrap();
 }
 

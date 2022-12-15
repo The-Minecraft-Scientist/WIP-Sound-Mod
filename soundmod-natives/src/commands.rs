@@ -7,6 +7,7 @@ use kira::sound::static_sound::StaticSoundHandle;
 use kira::sound::streaming::StreamingSoundHandle;
 use kira::sound::FromFileError;
 use symphonia::core::io::MediaSource;
+use crate::CALLBACKS;
 
 //See natives/Natives/RsSoundInstance
 #[repr(C)]
@@ -19,11 +20,9 @@ pub struct SoundInstance {
     pub pitch: f32,
 }
 impl SoundInstance {
-    pub fn get_stream(&self, ptrs: (InputStreamRead, InputStreamSeek)) -> JavaInputStream {
+    pub fn get_stream(&self) -> JavaInputStream {
         JavaInputStream {
             uuid: self.uuid,
-            read_ptr: ptrs.0,
-            seek_ptr: ptrs.1,
             size: self.size,
             position: 0,
         }
@@ -31,6 +30,7 @@ impl SoundInstance {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct JavaCallbacks {
     pub read: InputStreamRead,
     pub seek: InputStreamSeek,
@@ -75,15 +75,14 @@ pub enum SoundCommand {
 #[derive(Copy, Clone, Debug)]
 pub struct JavaInputStream {
     pub uuid: u64,
-    pub read_ptr: InputStreamRead,
-    pub seek_ptr: InputStreamSeek,
     pub size: i32,
     pub position: u64,
 }
 impl JavaInputStream {
     pub fn to_vec(&self) -> Vec<u8> {
+        let read_ptr = CALLBACKS.get().unwrap().read;
         let mut buf: Vec<u8> = Vec::with_capacity(self.size as usize);
-        if !(self.read_ptr)(self.uuid, buf.as_mut_ptr(), self.size as usize) == self.size {
+        if !(read_ptr)(self.uuid, buf.as_mut_ptr(), self.size as usize) == self.size {
             panic!("that shouldn't have happened")
         };
         buf
@@ -91,7 +90,8 @@ impl JavaInputStream {
 }
 impl Read for JavaInputStream {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        let res = (self.read_ptr)(self.uuid, buf.as_mut_ptr(), buf.len());
+        let read_ptr = CALLBACKS.get().unwrap().read;
+        let res = (read_ptr)(self.uuid, buf.as_mut_ptr(), buf.len());
         if res > 0 {
             Ok(res as usize)
         } else {
@@ -102,21 +102,22 @@ impl Read for JavaInputStream {
 
 impl Seek for JavaInputStream {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
+        let seek_ptr = CALLBACKS.get().unwrap().seek;
         match pos {
-            Start(pos) => self.position = (self.seek_ptr)(self.uuid, pos),
+            Start(pos) => self.position = (seek_ptr)(self.uuid, pos),
             Current(off) => {
                 let mut npos = self.position as i64 + off;
                 if npos < 0 {
                     npos = 0
                 }
-                self.position = (self.seek_ptr)(self.uuid, npos as u64)
+                self.position = (seek_ptr)(self.uuid, npos as u64)
             }
             End(off) => {
                 let mut npos = self.size as i64 + off;
                 if npos < 0 {
                     npos = 0
                 }
-                self.position = (self.seek_ptr)(self.uuid, npos as u64)
+                self.position = (seek_ptr)(self.uuid, npos as u64)
             }
         }
         return Ok(self.position);

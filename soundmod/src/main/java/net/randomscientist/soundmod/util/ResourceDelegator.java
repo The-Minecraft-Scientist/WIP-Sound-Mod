@@ -1,7 +1,6 @@
 package net.randomscientist.soundmod.util;
 
 import jdk.incubator.foreign.*;
-import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 
@@ -9,7 +8,6 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.VarHandle;
 import java.util.HashMap;
 
 import static net.randomscientist.soundmod.natives.Natives.*;
