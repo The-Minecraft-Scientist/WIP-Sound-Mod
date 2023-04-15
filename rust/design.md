@@ -30,5 +30,3 @@ I'm planning on backing the path tracer with the venerable (and efficient) Amant
 JNI calls can be expensive! C-based FFI is usually fairly cheap performance-wise in native languages. However, java isn't a native language, and it has to do a fair bit of work to setup a "native" calling convention and memory state, which can lead to expensive interrupts and context swaps. 
 I'm considering backing the "hotter" callbacks (ie updating world mask state because a block was removed/placed) with a buffer that flushes (causing a native call) periodically or when filled.
 
-## stay tuned!
-I'll probably be writing more here as I start to implement things!
