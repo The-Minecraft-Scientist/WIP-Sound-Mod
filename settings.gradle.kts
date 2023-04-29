@@ -9,12 +9,12 @@ pluginManagement {
 }
 
 rootProject.name = "soundmod"
+subProject("fabric")
 subProject("rust")
 include("rust:native-jni")
 include("rust:native")
 include("rust:native-test")
 
-subProject("fabric")
 
 fun subProject(name: String) {
     setupSubproject(name) {
