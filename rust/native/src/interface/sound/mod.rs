@@ -1,3 +1,2 @@
-mod resource;
-mod decode;
-mod data;
+pub(crate) mod data;
+pub mod resource;

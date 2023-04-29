@@ -1,5 +1,6 @@
 use crate::interface::sound::data::BlockProvider;
 use crate::interface::sound::resource::ResourceError::NoTracksError;
+use crate::interface::SoundModNativeCfg;
 use lru::LruCache;
 use samplerate_rs::{convert, ConverterType};
 use std::cell::RefCell;
@@ -23,12 +24,19 @@ impl Display for ResourcePath {
 }
 pub trait StaticResourceProvider {
     /// Attempts to load the entirety of a resource immediately
-    fn oneshot(&self, id: &ResourcePath, buffer: &mut Vec<u8>) -> Result<(), ResourceError>;
+    fn oneshot(&mut self, id: &ResourcePath, buffer: &mut Vec<u8>) -> Result<(), ResourceError>;
 }
-pub trait StreamingResourceProvider {
+pub trait StreamingAudioProvider {
     /// Attempts to fill a byte buffer with new data. Returns the number of bytes written.
     /// 0 is considered a valid output, not a failure condition.
     fn read(&mut self, id: usize, buf: &mut [u8]) -> usize;
+}
+//Cursed dummy impl
+//TODO: don't forget to remove this :/
+impl StreamingAudioProvider for () {
+    fn read(&mut self, id: usize, buf: &mut [u8]) -> usize {
+        0
+    }
 }
 
 #[derive(Error, Debug)]
@@ -147,14 +155,13 @@ struct StaticAudioProvider<T: StaticResourceProvider> {
     cache: LruCache<ResourcePath, Rc<StaticSound>>,
 }
 impl<T: StaticResourceProvider> StaticAudioProvider<T> {
-    pub fn new(resource_provider: T) -> Self {
+    pub fn new(resource_provider: T, cfg: Option<SoundModNativeCfg>) -> Self {
         Self {
             resource_provider,
             buffer: Vec::with_capacity(16 * 1024),
             cache: LruCache::new(
                 crate::interface::CONFIG
-                    .get()
-                    .expect("config should be initialized!")
+                    .get_or_init(|| cfg.unwrap_or(Default::default()))
                     .cache_size,
             ),
         }
@@ -180,15 +187,15 @@ impl<T: StaticResourceProvider> StaticAudioProvider<T> {
 }
 
 // Provides and manages providing sound data from ingame
-pub struct AudioProvider<T: StaticResourceProvider, U: StreamingResourceProvider> {
+pub struct AudioProvider<T: StaticResourceProvider, U: StreamingAudioProvider> {
     //Cache for static sounds
     static_provider: RefCell<StaticAudioProvider<T>>,
     streaming_provider: RefCell<PhantomData<U>>,
 }
-impl<T: StaticResourceProvider, U: StreamingResourceProvider> AudioProvider<T, U> {
+impl<T: StaticResourceProvider, U: StreamingAudioProvider> AudioProvider<T, U> {
     pub fn new(static_resource_provider: T, _streaming_provider: U) -> Self {
         Self {
-            static_provider: RefCell::new(StaticAudioProvider::new(static_resource_provider)),
+            static_provider: RefCell::new(StaticAudioProvider::new(static_resource_provider, None)),
             streaming_provider: RefCell::new(Default::default()),
         }
     }
