@@ -113,7 +113,7 @@ impl StaticSound {
             }
         }
         // If we can't tell the sample rate, fallback to 48000hz
-        let sample_rate = decoder.codec_params().sample_rate.unwrap_or(48_000u32);
+        let _sample_rate = decoder.codec_params().sample_rate.unwrap_or(48_000u32);
 
         let out_vec = {
             if let Some(sample_rate) = decoder.codec_params().sample_rate {
@@ -159,13 +159,16 @@ impl<T: StaticResourceProvider> StaticAudioProvider<T> {
             ),
         }
     }
-    pub fn load_static(&mut self, path: &ResourcePath) -> Result<Rc<StaticSound>, ResourceError> {
+    pub(crate) fn load_static(
+        &mut self,
+        path: &ResourcePath,
+    ) -> Result<Rc<StaticSound>, ResourceError> {
         let _ = self.resource_provider.oneshot(path, &mut self.buffer)?;
         let sound = Rc::new(StaticSound::new(&mut self.buffer)?);
         self.cache.push(path.clone(), sound.clone());
         Ok(sound)
     }
-    pub fn get_or_load_static(
+    pub(crate) fn get_or_load_static(
         &mut self,
         p: &ResourcePath,
     ) -> Result<Rc<StaticSound>, ResourceError> {
@@ -183,14 +186,14 @@ pub struct AudioProvider<T: StaticResourceProvider, U: StreamingResourceProvider
     streaming_provider: RefCell<PhantomData<U>>,
 }
 impl<T: StaticResourceProvider, U: StreamingResourceProvider> AudioProvider<T, U> {
-    pub fn new(static_resource_provider: T, streaming_provider: U) -> Self {
+    pub fn new(static_resource_provider: T, _streaming_provider: U) -> Self {
         Self {
             static_provider: RefCell::new(StaticAudioProvider::new(static_resource_provider)),
             streaming_provider: RefCell::new(Default::default()),
         }
     }
     // If we know a sound shouldn't stream, use this method to acquire its blocks
-    pub fn new_static(&self, path: &ResourcePath) -> Result<BlockProvider, ResourceError> {
+    pub(crate) fn new_static(&self, path: &ResourcePath) -> Result<BlockProvider, ResourceError> {
         let sound = self.static_provider.borrow_mut().get_or_load_static(path)?;
         Ok(BlockProvider::new_static(sound))
     }
