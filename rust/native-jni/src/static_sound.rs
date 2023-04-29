@@ -1,18 +1,18 @@
-use jni::objects::{JByteArray, JClass, JObject, JString, JValueGen, ReleaseMode};
-use jni::strings::{JNIString, JavaStr};
+use jni::objects::{JByteArray, JObject, JString, JValueGen};
+use jni::strings::{JNIString};
 use jni::{JNIEnv, JavaVM};
 use jni_fn::jni_fn;
 use once_cell::unsync::OnceCell;
 use soundmod_native::interface::sound::resource::{
     AudioProvider, ResourceError, ResourcePath, StaticResourceProvider,
 };
-use std::slice;
+
 
 pub struct JNIStaticSoundProvider {
     jvm: JavaVM,
 }
 impl JNIStaticSoundProvider {
-    pub fn init(mut env: JNIEnv) -> Self {
+    pub fn init(env: JNIEnv) -> Self {
         let jvm = env.get_java_vm().expect("failed to obtain JavaVM");
         let _ = jvm
             .attach_current_thread_as_daemon()

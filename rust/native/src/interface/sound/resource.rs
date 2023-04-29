@@ -34,7 +34,7 @@ pub trait StreamingAudioProvider {
 //Cursed dummy impl
 //TODO: don't forget to remove this :/
 impl StreamingAudioProvider for () {
-    fn read(&mut self, id: usize, buf: &mut [u8]) -> usize {
+    fn read(&mut self, _id: usize, _buf: &mut [u8]) -> usize {
         0
     }
 }
