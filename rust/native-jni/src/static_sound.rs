@@ -1,22 +1,22 @@
 use jni::objects::{JClass, JObject, JString, JValueGen, ReleaseMode};
-use jni::strings::{JNIString};
+use jni::strings::JNIString;
+use std::cell::{Ref, RefCell};
 
 use jni::{JNIEnv, JavaVM};
 use jni_fn::jni_fn;
-use once_cell::unsync::OnceCell;
+use once_cell::sync::OnceCell;
 use soundmod_native::interface::sound::resource::{
     AudioProvider, ResourceError, ResourcePath, StaticResourceProvider,
 };
 
-use std::rc::Rc;
 use std::slice;
 
+#[derive(Debug)]
 pub struct JNIStaticSoundProvider {
     jvm: JavaVM,
 }
 impl JNIStaticSoundProvider {
-    pub fn init(env: JNIEnv) -> Self {
-        let jvm = env.get_java_vm().expect("failed to obtain JavaVM");
+    pub fn init(jvm: JavaVM) -> Self {
         let _ = jvm
             .attach_current_thread_as_daemon()
             .expect("failed to attach to main thread");
@@ -46,23 +46,10 @@ impl JNIStaticSoundProvider {
         v
     }
 }
-thread_local! {
-    pub static STATE: OnceCell<Rc<AudioProvider<JNIStaticSoundProvider, ()>>> = OnceCell::new();
-}
+
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn init(env: JNIEnv, _class: JClass) {
-    let Ok(()) = STATE.with(|x| {
-        x.set(Rc::new(AudioProvider::new(
-            JNIStaticSoundProvider::init(env),
-            (),
-        )))
-    }) else {
-        panic!("failed to store new AudioProvider state")
-    };
-}
-pub fn get_state() -> Rc<AudioProvider<JNIStaticSoundProvider, ()>> {
-    STATE.with(|x| Rc::clone(x.get().expect("failed to extract AudioProvider state!")))
-}
+pub fn init(env: JNIEnv, _class: JClass) {}
+
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
 pub fn get_sound_data(mut env: JNIEnv, _class: JClass, id: JObject) {
     let path = ResourcePath(env.get_string(&JString::from(id)).unwrap().into());
@@ -73,6 +60,7 @@ pub fn get_sound_data(mut env: JNIEnv, _class: JClass, id: JObject) {
         soundmod_native::interface::sound::data::BlockProvider::Static { data: _, cursor: _ } => {}
     };
 }
+
 impl StaticResourceProvider for JNIStaticSoundProvider {
     fn oneshot(&mut self, id: &ResourcePath, buffer: &mut Vec<u8>) -> Result<(), ResourceError> {
         let mut env = self.get_env();
