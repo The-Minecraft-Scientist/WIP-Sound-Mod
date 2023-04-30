@@ -1,13 +1,13 @@
-use jni::objects::{JByteArray, JClass, JObject, JPrimitiveArray, JString, JValueGen, ReleaseMode};
-use jni::strings::{JNIString, JavaStr};
-use jni::sys::jbyte;
+use jni::objects::{JClass, JObject, JString, JValueGen, ReleaseMode};
+use jni::strings::{JNIString};
+
 use jni::{JNIEnv, JavaVM};
 use jni_fn::jni_fn;
 use once_cell::unsync::OnceCell;
 use soundmod_native::interface::sound::resource::{
-    AudioProvider, ResourceError, ResourcePath, StaticResourceProvider, StreamingAudioProvider,
+    AudioProvider, ResourceError, ResourcePath, StaticResourceProvider,
 };
-use std::any::Any;
+
 use std::rc::Rc;
 use std::slice;
 
@@ -70,7 +70,7 @@ pub fn get_sound_data(mut env: JNIEnv, _class: JClass, id: JObject) {
         .new_static(&path)
         .expect("failed to get sound data");
     match data {
-        soundmod_native::interface::sound::data::BlockProvider::Static { data, cursor: _ } => {}
+        soundmod_native::interface::sound::data::BlockProvider::Static { data: _, cursor: _ } => {}
     };
 }
 impl StaticResourceProvider for JNIStaticSoundProvider {

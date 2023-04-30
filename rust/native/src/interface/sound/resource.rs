@@ -11,7 +11,7 @@ use std::rc::Rc;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::conv::IntoSample;
 use symphonia::core::errors::Error::*;
-use symphonia::core::formats::FormatOptions;
+
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::probe::Hint;
 use thiserror::Error;
