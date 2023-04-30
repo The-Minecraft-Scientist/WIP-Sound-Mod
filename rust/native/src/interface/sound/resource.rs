@@ -11,7 +11,9 @@ use std::rc::Rc;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::conv::IntoSample;
 use symphonia::core::errors::Error::*;
+use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
+use symphonia::core::probe::Hint;
 use thiserror::Error;
 
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
@@ -57,11 +59,15 @@ pub enum ResourceError {
         #[from]
         src: samplerate_rs::Error,
     },
+    #[error("IO error")]
+    IoError {
+        #[from]
+        src: std::io::Error,
+    },
 }
-// Mono sound. 48 khz sample rate, 1 channel, 16 bit depth.
-pub(crate) struct StaticSound {
-    data: Vec<i16>,
-}
+/// Mono sound. 48 khz sample rate, 1 channel, 16 bit depth.
+#[derive(Clone, Debug)]
+pub struct StaticSound(Vec<i16>);
 impl StaticSound {
     fn new(source: &mut Vec<u8>) -> Result<Self, ResourceError> {
         // Icky clone. This is the cost of dynamic dispatch ig.
@@ -69,7 +75,7 @@ impl StaticSound {
             MediaSourceStream::new(Box::new(Cursor::new(source.to_owned())), Default::default());
         let mut fmt = symphonia::default::get_probe()
             .format(
-                &Default::default(),
+                &Hint::with_extension(&mut Default::default(), "ogg"),
                 mss,
                 &Default::default(),
                 &Default::default(),
@@ -85,7 +91,9 @@ impl StaticSound {
         // Skip the early parts of 2^n Vec growth to save on heap allocations
         let mut out_vec = Vec::with_capacity(256);
         loop {
-            let packet = fmt.next_packet()?;
+            let Ok(packet) = fmt.next_packet() else {
+                break
+            };
             match decoder.decode(&packet) {
                 Ok(audio_buf) => {
                     if packet.track_id() != track_id {
@@ -116,6 +124,10 @@ impl StaticSound {
                 Err(e) => match e {
                     ResetRequired => decoder.reset(),
                     DecodeError(_) => break,
+                    IoError(e) => match e.kind() {
+                        std::io::ErrorKind::UnexpectedEof => break,
+                        _ => return Err(e.into()),
+                    },
                     e => return Err(e.into()),
                 },
             }
@@ -146,7 +158,7 @@ impl StaticSound {
                 out_vec
             }
         };
-        Ok(Self { data: out_vec })
+        Ok(Self(out_vec))
     }
 }
 struct StaticAudioProvider<T: StaticResourceProvider> {
@@ -200,7 +212,7 @@ impl<T: StaticResourceProvider, U: StreamingAudioProvider> AudioProvider<T, U> {
         }
     }
     // If we know a sound shouldn't stream, use this method to acquire its blocks
-    pub(crate) fn new_static(&self, path: &ResourcePath) -> Result<BlockProvider, ResourceError> {
+    pub fn new_static(&self, path: &ResourcePath) -> Result<BlockProvider, ResourceError> {
         let sound = self.static_provider.borrow_mut().get_or_load_static(path)?;
         Ok(BlockProvider::new_static(sound))
     }

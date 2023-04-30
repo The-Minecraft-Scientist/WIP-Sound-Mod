@@ -118,4 +118,6 @@ public class SoundModNative {
         }
     }
     public static native void say_hi();
+    public static native void init();
+    public static native void get_sound_data(String id);
 }

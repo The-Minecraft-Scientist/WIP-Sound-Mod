@@ -1,9 +1,9 @@
 package net.randomscientist.soundmod.util;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.resource.ResourceFactory;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
+import net.randomscientist.soundmod.SoundMod;
 
 import java.io.InputStream;
 
@@ -16,8 +16,9 @@ public class ResourceProvider {
     }
     @SuppressWarnings("unused")
     public static InputStream getResourceStream(String id) {
+        Identifier ident = new Identifier(id);
         try {
-            return manager.open(new Identifier(id));
+            return manager.open(ident);
         } catch(Exception e) {
             throw new RuntimeException(e);
         }

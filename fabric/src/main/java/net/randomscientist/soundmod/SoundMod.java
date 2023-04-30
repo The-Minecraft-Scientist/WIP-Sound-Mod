@@ -1,9 +1,27 @@
 package net.randomscientist.soundmod;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.sound.Sound;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.client.sound.WeightedSoundSet;
+import net.minecraft.resource.Resource;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.math.random.RandomSplitter;
 import net.randomscientist.soundmod.rust.SoundModNative;
+import net.randomscientist.soundmod.util.ResourceProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.InputStream;
 
 public class SoundMod implements ModInitializer {
     // This logger is used to write text to the console and the log file.
@@ -17,6 +35,17 @@ public class SoundMod implements ModInitializer {
         // However, some things (like resources) may still be uninitialized.
         // Proceed with mild caution.
         SoundModNative.say_hi();
+        SoundModNative.init();
+        SoundInstance ins = new PositionedSoundInstance(SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.AMBIENT, 1.0f, 1.0f, Random.create(), new BlockPos(1, 1, 1));
+
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            WeightedSoundSet set = ins.getSoundSet(MinecraftClient.getInstance().getSoundManager());
+            Sound sound2 = ins.getSound();
+            String thing = sound2.getLocation().toString();
+            InputStream s = ResourceProvider.getResourceStream(thing);
+            SoundModNative.get_sound_data(thing);
+            return TypedActionResult.pass(player.getMainHandStack());
+        });
         LOGGER.info("Hello Fabric world!");
     }
 }
