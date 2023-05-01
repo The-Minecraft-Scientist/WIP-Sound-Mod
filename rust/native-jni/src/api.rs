@@ -17,7 +17,6 @@ impl SenderCell {
         self.0
             .get()
             .expect("failed to acquire sender!")
-            .clone()
             .send(msg)
             .expect("send failed!");
     }
