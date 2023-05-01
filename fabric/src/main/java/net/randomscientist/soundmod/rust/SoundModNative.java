@@ -4,9 +4,6 @@ import net.randomscientist.soundmod.SoundMod;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-
 public class SoundModNative {
     static {
         loadNatives();
@@ -118,6 +115,6 @@ public class SoundModNative {
         }
     }
     public static native void say_hi();
-    public static native void init();
+    public static native void init(Class providerClass);
     public static native void get_sound_data(String id);
 }

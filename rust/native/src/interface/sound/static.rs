@@ -13,7 +13,7 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::probe::Hint;
 
 #[derive(Clone, Debug)]
-pub struct StaticSound(Vec<i16>);
+pub struct StaticSound(pub(crate) Vec<i16>);
 impl StaticSound {
     fn new(source: &mut Vec<u8>) -> Result<Self, ResourceError> {
         // Icky clone. This is the cost of dynamic dispatch ig.
@@ -21,7 +21,7 @@ impl StaticSound {
             MediaSourceStream::new(Box::new(Cursor::new(source.to_owned())), Default::default());
         let mut fmt = symphonia::default::get_probe()
             .format(
-                &Hint::with_extension(&mut Default::default(), "ogg"),
+                Hint::with_extension(&mut Default::default(), "ogg"),
                 mss,
                 &Default::default(),
                 &Default::default(),
@@ -90,13 +90,13 @@ impl StaticSound {
                     ConverterType::SincBestQuality,
                     out_vec
                         .as_slice()
-                        .into_iter()
+                        .iter()
                         .map(|x| <i16 as IntoSample<f32>>::into_sample(*x))
                         .collect::<Vec<f32>>()
                         .as_slice(),
                 )?
                 .into_iter()
-                .map(|x| <f32 as IntoSample<i16>>::into_sample(x))
+                .map(<f32 as IntoSample<i16>>::into_sample)
                 .collect::<Vec<i16>>()
             }
             //Assume we have 48khz audio if a sample rate is not provided by the decoder.
@@ -110,7 +110,7 @@ impl StaticSound {
 pub(crate) struct StaticAudioProvider<T: StaticResourceProvider> {
     resource_provider: T,
     buffer: Vec<u8>,
-    cache: LruCache<ResourcePath, Rc<StaticSound>>,
+    pub cache: LruCache<ResourcePath, Rc<StaticSound>>,
 }
 impl<_T: StaticResourceProvider> Debug for StaticAudioProvider<_T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -141,9 +141,9 @@ impl<T: StaticResourceProvider> StaticAudioProvider<T> {
         &mut self,
         path: &ResourcePath,
     ) -> Result<Rc<StaticSound>, ResourceError> {
-        let _ = self.resource_provider.oneshot(path, &mut self.buffer)?;
+        self.resource_provider.oneshot(path, &mut self.buffer)?;
         let sound = Rc::new(StaticSound::new(&mut self.buffer)?);
-        self.cache.push(path.clone(), sound.clone());
+        self.cache.push(path.clone(), Rc::clone(&sound));
         Ok(sound)
     }
     pub(crate) fn get_or_load_static(

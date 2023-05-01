@@ -13,6 +13,7 @@ impl SenderCell {
         Self(OnceCell::new())
     }
     fn send(&self, msg: McToInterfaceMessage) {
+        println!("sending message");
         self.0
             .get()
             .expect("failed to acquire sender!")
@@ -33,11 +34,13 @@ pub fn say_hi(_env: JNIEnv) {
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn init(env: JNIEnv, _class: JClass) {
+pub fn init(env: JNIEnv, _parent_class: JClass, resource_class: JClass) {
+    let global = env.new_global_ref(resource_class).unwrap();
     let builder = SoundModInterfaceBuilder::new(
         JNIStaticSoundProvider::new(
             env.get_java_vm()
                 .expect("failed to get JavaVM while initalizing"),
+            global,
         ),
         (),
     );

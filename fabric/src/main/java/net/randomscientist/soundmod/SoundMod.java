@@ -8,6 +8,7 @@ import net.minecraft.client.sound.Sound;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.WeightedSoundSet;
 import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
@@ -28,22 +29,25 @@ public class SoundMod implements ModInitializer {
     // It is considered best practice to use your mod id as the logger's name.
     // That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LoggerFactory.getLogger("soundmod");
-
     @Override
     public void onInitialize() {
-
         // This code runs as soon as Minecraft is in a mod-load-ready state.
         // However, some things (like resources) may still be uninitialized.
         // Proceed with mild caution.
         SoundModNative.say_hi();
-        SoundModNative.init();
+        Class c;
+        try {
+            c = this.getClass().getClassLoader().loadClass("net.randomscientist.soundmod.util.ResourceProvider");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        SoundModNative.init(c);
         SoundInstance ins = new PositionedSoundInstance(SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.AMBIENT, 1.0f, 1.0f, Random.create(), new BlockPos(1, 1, 1));
 
         UseItemCallback.EVENT.register((player, world, hand) -> {
             WeightedSoundSet set = ins.getSoundSet(MinecraftClient.getInstance().getSoundManager());
             Sound sound2 = ins.getSound();
             String thing = sound2.getLocation().toString();
-            InputStream s = ResourceProvider.getResourceStream(thing);
             SoundModNative.get_sound_data(thing);
             return TypedActionResult.pass(player.getMainHandStack());
         });

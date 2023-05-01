@@ -5,7 +5,7 @@ use crate::interface::sound::resource::{
 
 use crossbeam::channel::Sender;
 use std::num::NonZeroUsize;
-use std::sync::mpsc::{channel, sync_channel, SyncSender};
+
 use std::thread::spawn;
 
 pub mod sound;
@@ -50,14 +50,12 @@ impl<Static: StaticResourceProvider + 'static, Streaming: StreamingAudioProvider
         let _ = spawn(move || {
             let asdf = self.build();
             for message in receiver.iter() {
-                println!("received message!");
                 match message {
                     McToInterfaceMessage::PrintSoundData(p) => {
                         let sound = asdf
                             .provider
                             .new_static(&p)
                             .expect("failed to create sound");
-                        dbg!(sound);
                     }
                     McToInterfaceMessage::Exit => break,
                 }

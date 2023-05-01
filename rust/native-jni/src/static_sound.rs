@@ -1,4 +1,4 @@
-use jni::objects::{GlobalRef, JObject, JPrimitiveArray, JString, JValueGen, ReleaseMode};
+use jni::objects::{GlobalRef, JClass, JObject, JPrimitiveArray, JString, JValueGen, ReleaseMode};
 use jni::strings::JNIString;
 
 use jni::{JNIEnv, JavaVM};
@@ -7,7 +7,9 @@ use soundmod_native::interface::sound::resource::{
     ResourceError, ResourcePath, StaticResourceProvider,
 };
 
+use jni::sys::jclass;
 use std::slice;
+
 #[derive(Debug)]
 struct JavaStructures {
     provider_class: GlobalRef,
@@ -16,21 +18,19 @@ struct JavaStructures {
 #[derive(Debug)]
 pub struct JNIStaticSoundProvider {
     jvm: JavaVM,
-    jvm_res: Option<JavaStructures>,
+    provider_class: GlobalRef,
 }
 impl JNIStaticSoundProvider {
-    pub fn new(jvm: JavaVM) -> Self {
-        Self { jvm, jvm_res: None }
+    pub fn new(jvm: JavaVM, provider_class: GlobalRef) -> Self {
+        Self {
+            jvm,
+            provider_class,
+        }
     }
     fn get_env(&self) -> JNIEnv {
         return self.jvm.get_env().expect("unexpectedly detached from JVM");
     }
-    fn get_resources(&self) -> &JavaStructures {
-        let Some(res) = &self.jvm_res else {
-            panic!("JVM side resources not intialized")
-        };
-        res
-    }
+
     fn get_stream(&mut self, path: &ResourcePath) -> GlobalRef {
         let env = &mut self.get_env();
         let string = env
@@ -39,7 +39,7 @@ impl JNIStaticSoundProvider {
         let string = JValueGen::Object(<JString as AsRef<JObject<'_>>>::as_ref(&string));
         let v = env
             .call_static_method(
-                &self.get_resources().provider_class,
+                &self.provider_class,
                 "getResourceStream",
                 "(Ljava/lang/String;)Ljava/io/InputStream;",
                 &[string],
@@ -48,15 +48,6 @@ impl JNIStaticSoundProvider {
             .l()
             .expect("failed to cast result object");
         env.new_global_ref(v).unwrap()
-    }
-    fn find_class(&self) -> GlobalRef {
-        let class = self
-            .get_env()
-            .find_class("net/randomscientist/soundmod/util/ResourceProvider")
-            .expect("failed to find provider class");
-        self.get_env()
-            .new_global_ref(class)
-            .expect("failed to create global reference to provider class")
     }
 }
 
@@ -68,7 +59,9 @@ impl StaticResourceProvider for JNIStaticSoundProvider {
     ) -> Result<(), ResourceError> {
         let stream = self.get_stream(id);
         let env = &mut self.get_env();
-        let jbuf = self.get_resources().buffer.as_raw();
+        let jbuf = env
+            .new_byte_array(1024)
+            .expect("failed to create java byte storage array");
         buffer.clear();
         loop {
             let int = env
@@ -76,18 +69,18 @@ impl StaticResourceProvider for JNIStaticSoundProvider {
                     &stream,
                     "read",
                     "([B)I",
-                    &[unsafe { &JObject::from_raw(jbuf) }.into()],
+                    &[unsafe { &JObject::from_raw(jbuf.as_raw()) }.into()],
                 )
                 .expect("failed to call JVM method read")
                 .i()
                 .expect("failed to cast result to JInt");
-            let arr = unsafe { JPrimitiveArray::<'local, u8>::from_raw(jbuf) };
             if int > 0 {
                 let elements = unsafe {
-                    env.get_array_elements(&arr, ReleaseMode::NoCopyBack)
+                    env.get_array_elements(&jbuf, ReleaseMode::NoCopyBack)
                         .unwrap()
                 };
-                let s: &[u8] = unsafe { slice::from_raw_parts(elements.as_ptr(), int as usize) };
+                let s: &[u8] =
+                    unsafe { slice::from_raw_parts(elements.as_ptr() as *const u8, int as usize) };
                 buffer.extend_from_slice(s);
             } else {
                 break;
@@ -100,15 +93,5 @@ impl StaticResourceProvider for JNIStaticSoundProvider {
         let Ok(_thing) = self.jvm.attach_current_thread_permanently() else {
             panic!("failed to attach interface thread to JVM!")
         };
-        let env = self.get_env();
-        self.jvm_res = Some(JavaStructures {
-            provider_class: self.find_class(),
-            buffer: env
-                .new_global_ref(
-                    env.new_byte_array(1024)
-                        .expect("failed to create java byte storage array"),
-                )
-                .unwrap(),
-        });
     }
 }

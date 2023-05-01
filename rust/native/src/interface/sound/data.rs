@@ -14,6 +14,13 @@ pub enum BlockProvider<const BLOCK_SIZE: usize = 256> {
         data: Rc<StaticSound>,
     },
 }
+impl BlockProvider {
+    pub fn len(&self) -> usize {
+        match self {
+            BlockProvider::Static { cursor, data } => data.0.len(),
+        }
+    }
+}
 impl<const SIZE: usize> BlockProvider<SIZE> {
     pub(crate) fn new_static(data: Rc<StaticSound>) -> Self {
         Self::Static { cursor: 0, data }
@@ -23,8 +30,8 @@ impl<const SIZE: usize> BlockProvider<SIZE> {
 #[derive(Debug)]
 pub struct AudioProvider<T: StaticResourceProvider, U: StreamingAudioProvider> {
     //Cache for static sounds
-    static_provider: RefCell<StaticAudioProvider<T>>,
-    streaming_provider: RefCell<PhantomData<U>>,
+    pub(crate) static_provider: RefCell<StaticAudioProvider<T>>,
+    pub(crate) streaming_provider: RefCell<PhantomData<U>>,
 }
 impl<T: StaticResourceProvider, U: StreamingAudioProvider> AudioProvider<T, U> {
     pub fn new(static_resource_provider: T, _streaming_provider: U) -> Self {
