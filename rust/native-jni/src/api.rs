@@ -13,7 +13,6 @@ impl SenderCell {
         Self(OnceCell::new())
     }
     fn send(&self, msg: McToInterfaceMessage) {
-        println!("sending message");
         self.0
             .get()
             .expect("failed to acquire sender!")
@@ -43,7 +42,6 @@ pub fn init(env: JNIEnv, _parent_class: JClass, resource_class: JClass) {
         ),
         (),
     );
-    println!("running builder");
     SENDER.set(builder.run())
 }
 
