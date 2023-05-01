@@ -1,13 +1,13 @@
 use crate::static_sound::JNIStaticSoundProvider;
+use crossbeam::channel::Sender;
 use jni::objects::{JClass, JObject, JString};
 use jni::JNIEnv;
 use jni_fn::jni_fn;
 use once_cell::sync::OnceCell;
 use soundmod_native::interface::sound::resource::ResourcePath;
 use soundmod_native::interface::{McToInterfaceMessage, SoundModInterfaceBuilder};
-use std::sync::mpsc::{Sender, SyncSender};
 
-pub struct SenderCell(OnceCell<SyncSender<McToInterfaceMessage>>);
+pub struct SenderCell(OnceCell<Sender<McToInterfaceMessage>>);
 impl SenderCell {
     pub const fn new() -> Self {
         Self(OnceCell::new())
@@ -20,7 +20,7 @@ impl SenderCell {
             .send(msg)
             .expect("send failed!");
     }
-    fn set(&self, val: SyncSender<McToInterfaceMessage>) {
+    fn set(&self, val: Sender<McToInterfaceMessage>) {
         self.0.set(val).expect("failed to set value of sender");
     }
 }
@@ -41,6 +41,7 @@ pub fn init(env: JNIEnv, _class: JClass) {
         ),
         (),
     );
+    println!("running builder");
     SENDER.set(builder.run())
 }
 
