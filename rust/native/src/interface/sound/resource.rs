@@ -24,16 +24,17 @@ impl Display for ResourcePath {
         f.write_str(&self.0)
     }
 }
-pub trait StaticResourceProvider {
+pub trait StaticResourceProvider: Send + Sync {
     /// Attempts to load the entirety of a resource immediately
     fn oneshot(&mut self, id: &ResourcePath, buffer: &mut Vec<u8>) -> Result<(), ResourceError>;
     /// Called before a StaticResourceProvider is used on any given thread
     fn init_on_thread(&mut self);
 }
-pub trait StreamingAudioProvider {
+pub trait StreamingAudioProvider: Send + Sync {
     /// Attempts to fill a byte buffer with new data. Returns the number of bytes written.
     /// 0 is considered a valid output, not a failure condition.
     fn read(&mut self, id: usize, buf: &mut [u8]) -> usize;
+    fn init_on_thread(&mut self);
 }
 //Cursed dummy impl
 //TODO: don't forget to remove this :/
@@ -41,6 +42,7 @@ impl StreamingAudioProvider for () {
     fn read(&mut self, _id: usize, _buf: &mut [u8]) -> usize {
         0
     }
+    fn init_on_thread(&mut self) {}
 }
 
 #[derive(Error, Debug)]

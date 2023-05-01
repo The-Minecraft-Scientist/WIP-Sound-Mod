@@ -1,9 +1,13 @@
+use crate::interface::sound::r#static::{StaticAudioProvider, StaticSound};
+use crate::interface::sound::resource::{
+    ResourceError, ResourcePath, StaticResourceProvider, StreamingAudioProvider,
+};
 use std::cell::RefCell;
 use std::marker::PhantomData;
-use crate::interface::sound::resource::{StaticResourceProvider, StaticSound, StreamingAudioProvider};
 use std::rc::Rc;
 
 // All sounds are internally represented as 48khz mono with 16 bits of depth. Blocks are BLOCK_LENGTH samples long. Default block length is 256.
+#[derive(Debug, Clone)]
 pub enum BlockProvider<const BLOCK_SIZE: usize = 256> {
     Static {
         cursor: usize,

@@ -6,7 +6,7 @@ use jni::{JNIEnv, JavaVM};
 use jni_fn::jni_fn;
 use once_cell::sync::OnceCell;
 use soundmod_native::interface::sound::resource::{
-    AudioProvider, ResourceError, ResourcePath, StaticResourceProvider,
+    ResourceError, ResourcePath, StaticResourceProvider,
 };
 
 use std::slice;
@@ -16,10 +16,7 @@ pub struct JNIStaticSoundProvider {
     jvm: JavaVM,
 }
 impl JNIStaticSoundProvider {
-    pub fn init(jvm: JavaVM) -> Self {
-        let _ = jvm
-            .attach_current_thread_as_daemon()
-            .expect("failed to attach to main thread");
+    pub fn new(jvm: JavaVM) -> Self {
         Self { jvm }
     }
     fn get_env(&self) -> JNIEnv {
@@ -45,20 +42,6 @@ impl JNIStaticSoundProvider {
             .expect("failed to cast result object");
         v
     }
-}
-
-#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn init(env: JNIEnv, _class: JClass) {}
-
-#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn get_sound_data(mut env: JNIEnv, _class: JClass, id: JObject) {
-    let path = ResourcePath(env.get_string(&JString::from(id)).unwrap().into());
-    let data = get_state()
-        .new_static(&path)
-        .expect("failed to get sound data");
-    match data {
-        soundmod_native::interface::sound::data::BlockProvider::Static { data: _, cursor: _ } => {}
-    };
 }
 
 impl StaticResourceProvider for JNIStaticSoundProvider {
@@ -96,5 +79,10 @@ impl StaticResourceProvider for JNIStaticSoundProvider {
         }
         //TODO: graceful errors instead of expect spam
         Ok(())
+    }
+    fn init_on_thread(&mut self) {
+        let Ok(_thing) = self.jvm.attach_current_thread_permanently() else {
+            panic!("failed to attach interface thread to JVM!")
+        };
     }
 }

@@ -2,12 +2,15 @@ use crate::interface::sound::resource::ResourceError::*;
 use crate::interface::sound::resource::{ResourceError, ResourcePath, StaticResourceProvider};
 use crate::interface::SoundModNativeCfg;
 use lru::LruCache;
-use samplerate_rs::convert;
-use std::fmt::Formatter;
+use samplerate_rs::{convert, ConverterType};
+use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
 use std::rc::Rc;
+use symphonia::core::audio::SampleBuffer;
+use symphonia::core::conv::IntoSample;
 use symphonia::core::errors::Error::{DecodeError, IoError, ResetRequired};
 use symphonia::core::io::MediaSourceStream;
+use symphonia::core::probe::Hint;
 
 #[derive(Clone, Debug)]
 pub struct StaticSound(Vec<i16>);
@@ -104,7 +107,7 @@ impl StaticSound {
         Ok(Self(out_vec))
     }
 }
-struct StaticAudioProvider<T: StaticResourceProvider> {
+pub(crate) struct StaticAudioProvider<T: StaticResourceProvider> {
     resource_provider: T,
     buffer: Vec<u8>,
     cache: LruCache<ResourcePath, Rc<StaticSound>>,
