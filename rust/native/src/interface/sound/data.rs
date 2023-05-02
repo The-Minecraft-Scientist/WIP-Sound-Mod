@@ -6,24 +6,52 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-// All sounds are internally represented as 48khz mono with 16 bits of depth. Blocks are BLOCK_LENGTH samples long. Default block length is 256.
+// All sounds are internally represented as 48khz mono PCM linear with 16 bits of depth. Blocks are BLOCK_LENGTH samples long. Default block length is 256.
 #[derive(Debug, Clone)]
-pub enum BlockProvider<const BLOCK_SIZE: usize = 256> {
+pub enum BlockProvider<T: StaticResourceProvider + 'static, U: StreamingAudioProvider + 'static> {
     Static {
-        cursor: usize,
+        cursor: Option<usize>,
         data: Rc<StaticSound>,
     },
+    Streaming {
+        id: u64,
+        provider: Rc<AudioProvider<T, U>>,
+    },
 }
-impl BlockProvider {
-    pub fn len(&self) -> usize {
-        match self {
-            BlockProvider::Static { cursor, data } => data.0.len(),
+impl<T: StaticResourceProvider + 'static, U: StreamingAudioProvider + 'static> BlockProvider<T, U> {
+    pub(crate) fn new_static(data: Rc<StaticSound>) -> Self {
+        Self::Static {
+            cursor: Some(0),
+            data,
         }
     }
-}
-impl<const SIZE: usize> BlockProvider<SIZE> {
-    pub(crate) fn new_static(data: Rc<StaticSound>) -> Self {
-        Self::Static { cursor: 0, data }
+    pub fn len(&self) -> usize {
+        match self {
+            BlockProvider::Static { cursor, data } => data.len(),
+            BlockProvider::Streaming { id, provider } => 0,
+        }
+    }
+    pub fn next_block<const BLOCK_LENGTH: usize>(
+        &mut self,
+        buf: &mut [i16; BLOCK_LENGTH],
+    ) -> usize {
+        match self {
+            BlockProvider::Static { cursor, data } => {
+                if let Some(c) = cursor {
+                    &c += 1;
+                    let index = c * BLOCK_LENGTH;
+                    if (index + BLOCK_LENGTH) == data.len() {
+                        let _ = cursor.take();
+                    }
+
+                    buf.copy_from_slice(data[index..(index + BLOCK_LENGTH)]);
+                    BLOCK_LENGTH
+                } else {
+                    0
+                }
+            }
+            BlockProvider::Streaming { id, provider } => 0,
+        }
     }
 }
 

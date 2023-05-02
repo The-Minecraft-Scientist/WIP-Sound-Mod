@@ -5,6 +5,7 @@ use lru::LruCache;
 use samplerate_rs::{convert, ConverterType};
 use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
+use std::ops::{Deref, DerefMut, Sub};
 use std::rc::Rc;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::conv::IntoSample;
@@ -13,8 +14,8 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::probe::Hint;
 
 #[derive(Clone, Debug)]
-pub struct StaticSound(pub(crate) Vec<i16>);
-impl StaticSound {
+pub struct StaticSound<const BLOCK_LENGTH: usize = 256>(pub(crate) Vec<i16>);
+impl<const BLOCK_LENGTH: usize> StaticSound<BLOCK_LENGTH> {
     fn new(source: &mut Vec<u8>) -> Result<Self, ResourceError> {
         // Icky clone. This is the cost of dynamic dispatch ig.
         let mss =
@@ -81,7 +82,7 @@ impl StaticSound {
         // If we can't tell the sample rate, fallback to 48000hz
         let _sample_rate = decoder.codec_params().sample_rate.unwrap_or(48_000u32);
 
-        let out_vec = {
+        let mut out_vec = {
             if let Some(sample_rate) = decoder.codec_params().sample_rate {
                 convert(
                     sample_rate,
@@ -104,7 +105,21 @@ impl StaticSound {
                 out_vec
             }
         };
+        let r = multiple - out_vec.len() % BLOCK_LENGTH;
+        out_vec.resize(out_vec.len() + r, 0);
         Ok(Self(out_vec))
+    }
+}
+impl Deref for StaticSound {
+    type Target = Vec<i16>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for StaticSound {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 pub(crate) struct StaticAudioProvider<T: StaticResourceProvider> {
