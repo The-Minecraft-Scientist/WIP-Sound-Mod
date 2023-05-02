@@ -4,6 +4,7 @@
   "package": "net.randomscientist.soundmod.mixins",
   "compatibilityLevel": "JAVA_8",
   "client": [
+    "SourceMixin"
   ],
   "injectors": {
     "defaultRequire": 1
