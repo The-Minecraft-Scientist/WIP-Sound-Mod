@@ -5,7 +5,7 @@ use lru::LruCache;
 use samplerate_rs::{convert, ConverterType};
 use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
-use std::ops::{Deref, DerefMut, Sub};
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::conv::IntoSample;
@@ -142,7 +142,7 @@ impl<_T: StaticResourceProvider, const _L: usize> Debug for StaticAudioProvider<
         Ok(())
     }
 }
-impl<T: StaticResourceProvider, const BLOCK_LENGTH: usize> StaticAudioProvider<T> {
+impl<T: StaticResourceProvider, const BLOCK_LENGTH: usize> StaticAudioProvider<T, BLOCK_LENGTH> {
     pub fn new(resource_provider: T, cfg: Option<SoundModNativeCfg>) -> Self {
         Self {
             resource_provider,
@@ -163,7 +163,7 @@ impl<T: StaticResourceProvider, const BLOCK_LENGTH: usize> StaticAudioProvider<T
         self.cache.push(path.clone(), Rc::clone(&sound));
         Ok(sound)
     }
-    pub(crate) fn get_or_load_static<const BLOCK_SIZE: usize>(
+    pub(crate) fn get_or_load_static(
         &mut self,
         p: &ResourcePath,
     ) -> Result<Rc<StaticSound<BLOCK_LENGTH>>, ResourceError> {

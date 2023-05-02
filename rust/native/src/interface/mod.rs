@@ -52,7 +52,7 @@ impl<Static: StaticResourceProvider + 'static, Streaming: StreamingAudioProvider
             for message in receiver.iter() {
                 match message {
                     McToInterfaceMessage::PrintSoundData(p) => {
-                        let sound = asdf
+                        let _sound = asdf
                             .provider
                             .new_static(&p)
                             .expect("failed to create sound");

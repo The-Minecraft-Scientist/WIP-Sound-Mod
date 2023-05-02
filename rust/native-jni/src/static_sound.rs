@@ -1,4 +1,4 @@
-use jni::objects::{GlobalRef, JClass, JObject, JPrimitiveArray, JString, JValueGen, ReleaseMode};
+use jni::objects::{GlobalRef, JObject, JString, JValueGen, ReleaseMode};
 use jni::strings::JNIString;
 
 use jni::{JNIEnv, JavaVM};
@@ -7,7 +7,7 @@ use soundmod_native::interface::sound::resource::{
     ResourceError, ResourcePath, StaticResourceProvider,
 };
 
-use jni::sys::jclass;
+
 use std::slice;
 
 #[derive(Debug)]

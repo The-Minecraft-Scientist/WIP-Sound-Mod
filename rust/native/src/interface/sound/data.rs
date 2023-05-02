@@ -47,7 +47,7 @@ impl<T: StaticResourceProvider, U: StreamingAudioProvider, const BLOCK_LENGTH: u
                     0
                 }
             }
-            BlockProvider::Streaming { id, provider } => 0,
+            BlockProvider::Streaming { id: _, provider: _ } => 0,
         }
     }
 }
