@@ -8,43 +8,40 @@ use std::rc::Rc;
 
 // All sounds are internally represented as 48khz mono PCM linear with 16 bits of depth. Blocks are BLOCK_LENGTH samples long. Default block length is 256.
 #[derive(Debug, Clone)]
-pub enum BlockProvider<T: StaticResourceProvider + 'static, U: StreamingAudioProvider + 'static> {
+pub enum BlockProvider<
+    T: StaticResourceProvider,
+    U: StreamingAudioProvider,
+    const BLOCK_LENGTH: usize = 256,
+> {
     Static {
         cursor: Option<usize>,
-        data: Rc<StaticSound>,
+        data: Rc<StaticSound<BLOCK_LENGTH>>,
     },
     Streaming {
         id: u64,
         provider: Rc<AudioProvider<T, U>>,
     },
 }
-impl<T: StaticResourceProvider + 'static, U: StreamingAudioProvider + 'static> BlockProvider<T, U> {
-    pub(crate) fn new_static(data: Rc<StaticSound>) -> Self {
+impl<T: StaticResourceProvider, U: StreamingAudioProvider, const BLOCK_LENGTH: usize>
+    BlockProvider<T, U, BLOCK_LENGTH>
+{
+    pub(crate) fn new_static(data: Rc<StaticSound<BLOCK_LENGTH>>) -> Self {
         Self::Static {
             cursor: Some(0),
             data,
         }
     }
-    pub fn len(&self) -> usize {
-        match self {
-            BlockProvider::Static { cursor, data } => data.len(),
-            BlockProvider::Streaming { id, provider } => 0,
-        }
-    }
-    pub fn next_block<const BLOCK_LENGTH: usize>(
-        &mut self,
-        buf: &mut [i16; BLOCK_LENGTH],
-    ) -> usize {
+    pub fn next_block(&mut self, buf: &mut [i16; BLOCK_LENGTH]) -> usize {
         match self {
             BlockProvider::Static { cursor, data } => {
                 if let Some(c) = cursor {
-                    &c += 1;
-                    let index = c * BLOCK_LENGTH;
+                    *c += 1;
+                    let index = *c * BLOCK_LENGTH;
                     if (index + BLOCK_LENGTH) == data.len() {
                         let _ = cursor.take();
                     }
-
-                    buf.copy_from_slice(data[index..(index + BLOCK_LENGTH)]);
+                    //This won't panic because we padded the
+                    buf.copy_from_slice(&data[index..(index + BLOCK_LENGTH)]);
                     BLOCK_LENGTH
                 } else {
                     0
@@ -69,8 +66,11 @@ impl<T: StaticResourceProvider, U: StreamingAudioProvider> AudioProvider<T, U> {
         }
     }
     // If we know a sound shouldn't stream, use this method to acquire its blocks
-    pub fn new_static(&self, path: &ResourcePath) -> Result<BlockProvider, ResourceError> {
+    pub fn new_static<const BLOCK_SIZE: usize>(
+        &self,
+        path: &ResourcePath,
+    ) -> Result<BlockProvider<T, U, BLOCK_SIZE>, ResourceError> {
         let sound = self.static_provider.borrow_mut().get_or_load_static(path)?;
-        Ok(BlockProvider::new_static(sound))
+        Ok(BlockProvider::<T, U, BLOCK_SIZE>::new_static(sound))
     }
 }

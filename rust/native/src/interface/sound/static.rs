@@ -80,6 +80,7 @@ impl<const BLOCK_LENGTH: usize> StaticSound<BLOCK_LENGTH> {
             }
         }
         // If we can't tell the sample rate, fallback to 48000hz
+        //TODO: this is bad
         let _sample_rate = decoder.codec_params().sample_rate.unwrap_or(48_000u32);
 
         let mut out_vec = {
@@ -105,29 +106,30 @@ impl<const BLOCK_LENGTH: usize> StaticSound<BLOCK_LENGTH> {
                 out_vec
             }
         };
-        let r = multiple - out_vec.len() % BLOCK_LENGTH;
+        let r = BLOCK_LENGTH - out_vec.len() % BLOCK_LENGTH;
+        //Pad output to a multiple of block length
         out_vec.resize(out_vec.len() + r, 0);
         Ok(Self(out_vec))
     }
 }
-impl Deref for StaticSound {
+impl<const BLOCK_LENGTH: usize> Deref for StaticSound<BLOCK_LENGTH> {
     type Target = Vec<i16>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl DerefMut for StaticSound {
+impl<const BLOCK_LENGTH: usize> DerefMut for StaticSound<BLOCK_LENGTH> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-pub(crate) struct StaticAudioProvider<T: StaticResourceProvider> {
+pub(crate) struct StaticAudioProvider<T: StaticResourceProvider, const BLOCK_LENGTH: usize = 256> {
     resource_provider: T,
     buffer: Vec<u8>,
-    pub cache: LruCache<ResourcePath, Rc<StaticSound>>,
+    pub cache: LruCache<ResourcePath, Rc<StaticSound<BLOCK_LENGTH>>>,
 }
-impl<_T: StaticResourceProvider> Debug for StaticAudioProvider<_T> {
+impl<_T: StaticResourceProvider, const _L: usize> Debug for StaticAudioProvider<_T, _L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let _ = f.write_str(
             format!(
@@ -140,7 +142,7 @@ impl<_T: StaticResourceProvider> Debug for StaticAudioProvider<_T> {
         Ok(())
     }
 }
-impl<T: StaticResourceProvider> StaticAudioProvider<T> {
+impl<T: StaticResourceProvider, const BLOCK_LENGTH: usize> StaticAudioProvider<T, BLOCK_LENGTH> {
     pub fn new(resource_provider: T, cfg: Option<SoundModNativeCfg>) -> Self {
         Self {
             resource_provider,
@@ -155,16 +157,16 @@ impl<T: StaticResourceProvider> StaticAudioProvider<T> {
     pub(crate) fn load_static(
         &mut self,
         path: &ResourcePath,
-    ) -> Result<Rc<StaticSound>, ResourceError> {
+    ) -> Result<Rc<StaticSound<BLOCK_LENGTH>>, ResourceError> {
         self.resource_provider.oneshot(path, &mut self.buffer)?;
-        let sound = Rc::new(StaticSound::new(&mut self.buffer)?);
+        let sound = Rc::new(StaticSound::<BLOCK_LENGTH>::new(&mut self.buffer)?);
         self.cache.push(path.clone(), Rc::clone(&sound));
         Ok(sound)
     }
-    pub(crate) fn get_or_load_static(
+    pub(crate) fn get_or_load_static<const BLOCK_SIZE: usize>(
         &mut self,
         p: &ResourcePath,
-    ) -> Result<Rc<StaticSound>, ResourceError> {
+    ) -> Result<Rc<StaticSound<BLOCK_LENGTH>>, ResourceError> {
         if let Some(cached) = self.cache.get(p) {
             return Ok(cached.clone());
         }
