@@ -142,7 +142,7 @@ impl<_T: StaticResourceProvider, const _L: usize> Debug for StaticAudioProvider<
         Ok(())
     }
 }
-impl<T: StaticResourceProvider, const BLOCK_LENGTH: usize> StaticAudioProvider<T, BLOCK_LENGTH> {
+impl<T: StaticResourceProvider, const BLOCK_LENGTH: usize> StaticAudioProvider<T> {
     pub fn new(resource_provider: T, cfg: Option<SoundModNativeCfg>) -> Self {
         Self {
             resource_provider,

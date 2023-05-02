@@ -53,20 +53,29 @@ impl<T: StaticResourceProvider, U: StreamingAudioProvider, const BLOCK_LENGTH: u
 }
 
 #[derive(Debug)]
-pub struct AudioProvider<T: StaticResourceProvider, U: StreamingAudioProvider> {
+pub struct AudioProvider<
+    T: StaticResourceProvider,
+    U: StreamingAudioProvider,
+    const BLOCK_SIZE: usize = 256,
+> {
     //Cache for static sounds
-    pub(crate) static_provider: RefCell<StaticAudioProvider<T>>,
+    pub(crate) static_provider: RefCell<StaticAudioProvider<T, BLOCK_SIZE>>,
     pub(crate) streaming_provider: RefCell<PhantomData<U>>,
 }
-impl<T: StaticResourceProvider, U: StreamingAudioProvider> AudioProvider<T, U> {
+impl<T: StaticResourceProvider, U: StreamingAudioProvider, const BLOCK_SIZE: usize>
+    AudioProvider<T, U, BLOCK_SIZE>
+{
     pub fn new(static_resource_provider: T, _streaming_provider: U) -> Self {
         Self {
-            static_provider: RefCell::new(StaticAudioProvider::new(static_resource_provider, None)),
+            static_provider: RefCell::new(StaticAudioProvider::<T, BLOCK_SIZE>::new(
+                static_resource_provider,
+                None,
+            )),
             streaming_provider: RefCell::new(Default::default()),
         }
     }
     // If we know a sound shouldn't stream, use this method to acquire its blocks
-    pub fn new_static<const BLOCK_SIZE: usize>(
+    pub fn new_static(
         &self,
         path: &ResourcePath,
     ) -> Result<BlockProvider<T, U, BLOCK_SIZE>, ResourceError> {
