@@ -7,22 +7,15 @@ import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.client.sound.Sound;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.WeightedSoundSet;
-import net.minecraft.resource.Resource;
-import net.minecraft.resource.ResourceManager;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
-import net.minecraft.util.math.random.RandomSplitter;
-import net.randomscientist.soundmod.rust.SoundModNative;
-import net.randomscientist.soundmod.util.ResourceProvider;
+import net.randomscientist.soundmod.mixins.SoundModNative;
+import net.randomscientist.soundmod.rust.SoundModLib;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.InputStream;
 
 public class SoundMod implements ModInitializer {
     // This logger is used to write text to the console and the log file.

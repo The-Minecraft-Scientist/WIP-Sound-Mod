@@ -4,7 +4,7 @@ import net.randomscientist.soundmod.SoundMod;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.*;
-public class SoundModNative {
+public class SoundModLib {
     static {
         loadNatives();
     }
@@ -52,7 +52,7 @@ public class SoundModNative {
     }
 
     private static void copyToFile(File dst, String resourcePath) {
-        try (InputStream in = SoundModNative.class.getResourceAsStream(resourcePath)) {
+        try (InputStream in = SoundModLib.class.getResourceAsStream(resourcePath)) {
             if (in == null) {
                 throw new RuntimeException("Invalid native lib resource path: " + resourcePath);
             }
@@ -114,7 +114,4 @@ public class SoundModNative {
             };
         }
     }
-    public static native void say_hi();
-    public static native void init(Class providerClass);
-    public static native void get_sound_data(String id);
 }

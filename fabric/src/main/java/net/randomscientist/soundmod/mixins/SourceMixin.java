@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
+// Committing crimes with both indirection and magnitude
 @Mixin(Source.class)
 public class SourceMixin {
     @Final
@@ -24,7 +25,7 @@ public class SourceMixin {
 
     @Overwrite
     static @Nullable Source create() {
-        return newSource(0);
+        return newSource(SoundModNative.new_sound_uuid());
     }
     @Overwrite
     public void close() {}
