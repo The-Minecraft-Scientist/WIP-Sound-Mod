@@ -13,12 +13,17 @@ impl SenderCell {
     pub const fn new() -> Self {
         Self(OnceCell::new())
     }
+    ///Useful for one-off messages. For large/long running message, grab a fresh sender instead
     fn send(&self, msg: McToInterfaceMessage) {
         self.0
             .get()
             .expect("failed to acquire sender!")
             .send(msg)
             .expect("send failed!");
+    }
+    /// Useful when you need to send a lot of messages and dont want to worry about potential contention on the primary Sender
+    fn get_new_sender(&self) -> Sender<McToInterfaceMessage> {
+        self.0.get().expect("failed to acquire sender!").clone()
     }
     fn set(&self, val: Sender<McToInterfaceMessage>) {
         self.0.set(val).expect("failed to set value of sender");
