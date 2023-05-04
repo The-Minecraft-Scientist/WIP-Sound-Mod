@@ -21,12 +21,12 @@ public class SourceMixin {
     private final int pointer = 0;
 
     @Invoker("<init>")
-    static private Source newSource(int pointer) {
+    static private Source newSource(final int ptr) {
         throw new AssertionError();
     }
 
     @Overwrite
-    static @Nullable Source create() {
+    public static @Nullable Source create() {
         return newSource(new_sound_uuid());
     }
     // Stop playback, close stream, free buffers, delete sources... etc.

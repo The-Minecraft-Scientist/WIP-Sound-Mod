@@ -5,9 +5,6 @@ import org.apache.commons.lang3.SystemUtils;
 
 import java.io.*;
 public class SoundModLib {
-    static {
-        loadNatives();
-    }
     public static synchronized void loadNatives() {
 
         String overwrite = System.getProperty("soundmod.native_lib");
