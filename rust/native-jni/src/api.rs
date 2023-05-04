@@ -1,6 +1,7 @@
 use crate::static_sound::JNIStaticSoundProvider;
 use crossbeam::channel::Sender;
 use jni::objects::{JClass, JObject, JString};
+use jni::sys::{jboolean, jdouble, jfloat, jint};
 use jni::JNIEnv;
 use jni_fn::jni_fn;
 use once_cell::sync::OnceCell;
@@ -46,7 +47,65 @@ pub fn init(env: JNIEnv, _parent_class: JClass, resource_class: JClass) {
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn get_sound_data(mut env: JNIEnv, _class: JClass, id: JObject) {
+pub fn get_sound_data(mut env: JNIEnv, _parent_class: JClass, id: JObject) {
     let path = ResourcePath(env.get_string(&JString::from(id)).unwrap().into());
     SENDER.send(McToInterfaceMessage::PrintSoundData(path));
+}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn new_sound_uuid(env: JNIEnv, _parent_class: JClass) -> jint {
+    0
+}
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn close_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn play_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn pause_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn resume_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn is_playing_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) -> jboolean {
+    0u8
+}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn is_stopped_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) -> jboolean {
+    0u8
+}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn set_position_uuid(
+    env: JNIEnv,
+    _parent_class: JClass,
+    uuid: jint,
+    x: jdouble,
+    y: jdouble,
+    z: jdouble,
+) {
+}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn set_pitch_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, pitch: jfloat) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn set_looping_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, looping: jboolean) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn set_relative_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, relative: jboolean) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn set_ogg_stream_path_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, path: JString) {}
+
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn set_custom_stream_uuid(
+    env: JNIEnv,
+    _parent_class: JClass,
+    uuid: jint,
+    audio_stream: JObject,
+) {
 }
