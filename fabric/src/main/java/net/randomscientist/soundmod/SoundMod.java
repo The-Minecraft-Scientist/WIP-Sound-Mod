@@ -12,8 +12,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
-import net.randomscientist.soundmod.mixins.SoundModNative;
-import net.randomscientist.soundmod.rust.SoundModLib;
+import net.randomscientist.soundmod.rust.SoundModNative;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
