@@ -100,7 +100,7 @@ impl<Static: StaticResourceProvider + 'static, Streaming: StreamingAudioProvider
                             .send(InterfaceToMcTalkBack::NewSound(latest_uuid))
                             .expect("failed to send new sound uuid");
                     }
-                    Change(UpdateSound { id, change }) => {
+                    Change(UpdateSound { id: _, change }) => {
                         use crate::interface::SoundUpdateType::*;
                         match change {
                             Play => {}

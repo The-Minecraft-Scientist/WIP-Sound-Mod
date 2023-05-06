@@ -1,7 +1,7 @@
 use crate::static_sound::JNIStaticSoundProvider;
 use crossbeam::channel::{Receiver, Sender};
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jboolean, jdouble, jfloat, jint, jobject};
+use jni::sys::{jboolean, jdouble, jfloat, jint};
 use jni::JNIEnv;
 use jni_fn::jni_fn;
 use once_cell::sync::OnceCell;
@@ -11,8 +11,8 @@ use soundmod_native::interface::{
     InterfaceToMcTalkBack, McToInterfaceMessage, SoundModInterfaceBuilder, SoundUpdateType,
     UpdateSound,
 };
-use soundmod_native::playback::Player;
-use std::ops::Deref;
+
+
 
 #[derive(Debug)]
 pub struct GlobalState(
@@ -90,7 +90,7 @@ pub fn get_sound_data(mut env: JNIEnv, _parent_class: JClass, id: JObject) {
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn new_sound_uuid(env: JNIEnv, _parent_class: JClass) -> jint {
+pub fn new_sound_uuid(_env: JNIEnv, _parent_class: JClass) -> jint {
     SENDER.send(McToInterfaceMessage::NewSound);
     match SENDER.receive() {
         InterfaceToMcTalkBack::NewSound(i) => i as jint,
@@ -100,15 +100,15 @@ pub fn new_sound_uuid(env: JNIEnv, _parent_class: JClass) -> jint {
     }
 }
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn close_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {}
+pub fn close_uuid(_env: JNIEnv, _parent_class: JClass, _uuid: jint) {}
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn play_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {
+pub fn play_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint) {
     SENDER.send(Change(UpdateSound::new(uuid as u32, SoundUpdateType::Play)))
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn pause_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {
+pub fn pause_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint) {
     SENDER.send(Change(UpdateSound::new(
         uuid as u32,
         SoundUpdateType::Pause,
@@ -116,7 +116,7 @@ pub fn pause_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn resume_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {
+pub fn resume_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint) {
     SENDER.send(Change(UpdateSound::new(
         uuid as u32,
         SoundUpdateType::Resume,
@@ -124,7 +124,7 @@ pub fn resume_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn is_playing_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) -> jboolean {
+pub fn is_playing_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint) -> jboolean {
     SENDER.send(McToInterfaceMessage::Change(UpdateSound::new(
         uuid as u32,
         SoundUpdateType::CheckIsPlaying,
@@ -144,25 +144,25 @@ pub fn is_playing_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) -> jboole
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn is_stopped_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) -> jboolean {
+pub fn is_stopped_uuid(_env: JNIEnv, _parent_class: JClass, _uuid: jint) -> jboolean {
     0u8
 }
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn stop_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint) {}
+pub fn stop_uuid(_env: JNIEnv, _parent_class: JClass, _uuid: jint) {}
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
 pub fn set_position_uuid(
-    env: JNIEnv,
+    _env: JNIEnv,
     _parent_class: JClass,
-    uuid: jint,
-    x: jdouble,
-    y: jdouble,
-    z: jdouble,
+    _uuid: jint,
+    _x: jdouble,
+    _y: jdouble,
+    _z: jdouble,
 ) {
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn set_pitch_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, pitch: jfloat) {
+pub fn set_pitch_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint, pitch: jfloat) {
     SENDER.send(Change(UpdateSound::new(
         uuid as u32,
         SoundUpdateType::SetPitch(pitch),
@@ -170,7 +170,7 @@ pub fn set_pitch_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, pitch: jfl
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn set_looping_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, looping: jboolean) {
+pub fn set_looping_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint, looping: jboolean) {
     SENDER.send(Change(UpdateSound::new(
         uuid as u32,
         SoundUpdateType::SetLooping(if looping == 0 { false } else { true }),
@@ -178,7 +178,7 @@ pub fn set_looping_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, looping:
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
-pub fn set_relative_uuid(env: JNIEnv, _parent_class: JClass, uuid: jint, relative: jboolean) {
+pub fn set_relative_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint, relative: jboolean) {
     SENDER.send(Change(UpdateSound::new(
         uuid as u32,
         SoundUpdateType::SetRelative(if relative == 0 { false } else { true }),
@@ -213,9 +213,9 @@ impl<'a> JResourcePath<'a> {
 // Still a no-op :))))))))))))))
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
 pub fn set_custom_stream_uuid(
-    env: JNIEnv,
+    _env: JNIEnv,
     _parent_class: JClass,
-    uuid: jint,
-    audio_stream: JObject,
+    _uuid: jint,
+    _audio_stream: JObject,
 ) {
 }
