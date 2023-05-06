@@ -6,6 +6,7 @@ import net.minecraft.client.sound.StaticSound;
 import net.minecraft.util.math.Vec3d;
 import net.randomscientist.soundmod.rust.SoundModNative;
 import net.randomscientist.soundmod.sound.ResourcePathAudioStream;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

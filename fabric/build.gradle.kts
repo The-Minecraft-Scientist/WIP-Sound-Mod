@@ -61,3 +61,4 @@ tasks {
         withSourcesJar()
     }
 }
+//tasks.getByName("compileJava").dependsOn(tasks.getByPath(":rust:native-jni:build"))
