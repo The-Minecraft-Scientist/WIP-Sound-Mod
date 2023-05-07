@@ -4,6 +4,7 @@ import net.minecraft.client.sound.AudioStream;
 import net.minecraft.client.sound.Source;
 import net.minecraft.client.sound.StaticSound;
 import net.minecraft.util.math.Vec3d;
+import net.randomscientist.soundmod.SoundMod;
 import net.randomscientist.soundmod.rust.SoundModNative;
 import net.randomscientist.soundmod.sound.ResourcePathAudioStream;
 import org.jetbrains.annotations.NotNull;
@@ -19,7 +20,7 @@ public class SourceMixin {
     //We reuse pointer for crimes™
     @Final
     @Shadow
-    private final int pointer = 0;
+    private int pointer;
 
     @Invoker("<init>")
     static private Source newSource(final int ptr) {
@@ -28,7 +29,8 @@ public class SourceMixin {
 
     @Overwrite
     public static @Nullable Source create() {
-        return newSource(new_sound_uuid());
+        int i = new_sound_uuid();
+        return newSource(i);
     }
     // Stop playback, close stream, free buffers, delete sources... etc.
     @Overwrite
@@ -77,7 +79,9 @@ public class SourceMixin {
     public void setStream(AudioStream stream) {
         if(stream instanceof ResourcePathAudioStream) {
             //This stream is a funny stream that can do funny things (like nothing)
-            SoundModNative.set_ogg_stream_path_uuid(this.pointer, ((ResourcePathAudioStream) stream).get_path().toString());
+            String name = ((ResourcePathAudioStream) stream).get_path().toString();
+            SoundMod.LOGGER.info("sound #" + this.pointer + " requesting id: " + name);
+            SoundModNative.set_ogg_stream_path_uuid(this.pointer, name);
         } else {
             //Boring custom audio impl that will be a pain in the ass to support, so I won't (for now)
             SoundModNative.set_custom_stream_uuid(this.pointer, stream);

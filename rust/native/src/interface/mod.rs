@@ -23,6 +23,7 @@ impl Default for SoundModNativeCfg {
 }
 pub(crate) static CONFIG: once_cell::sync::OnceCell<SoundModNativeCfg> =
     once_cell::sync::OnceCell::new();
+#[derive(Debug)]
 pub enum InterfaceToMcTalkBack {
     NewSound(u32),
     IsStopped(bool),
