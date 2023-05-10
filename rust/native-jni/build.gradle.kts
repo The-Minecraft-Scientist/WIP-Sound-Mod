@@ -3,8 +3,9 @@ plugins {
 }
 
 rust {
-    targets += defaultTarget()
-    release.set(false)
+    targets += defaultTarget().apply {
+        release = true
+    }
     cargoInstallTargets.set(true)
 
 }

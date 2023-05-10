@@ -83,6 +83,7 @@ public class SourceMixin {
             SoundMod.LOGGER.info("sound #" + this.pointer + " requesting id: " + name);
             SoundModNative.set_ogg_stream_path_uuid(this.pointer, name);
         } else {
+            SoundMod.LOGGER.info("normal audio stream called :((((");
             //Boring custom audio impl that will be a pain in the ass to support, so I won't (for now)
             SoundModNative.set_custom_stream_uuid(this.pointer, stream);
         }

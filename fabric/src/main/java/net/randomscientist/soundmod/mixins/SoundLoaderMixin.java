@@ -15,7 +15,6 @@ import java.util.concurrent.CompletableFuture;
 public class SoundLoaderMixin {
     @Overwrite
     public CompletableFuture<AudioStream> loadStreamed(Identifier id, boolean repeatInstantly) {
-        SoundMod.LOGGER.info("loadStreamed called");
         return CompletableFuture.supplyAsync(() -> new RustOggStream(id), Util.getMainWorkerExecutor());
     }
 }
