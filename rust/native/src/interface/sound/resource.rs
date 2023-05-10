@@ -24,13 +24,13 @@ impl Display for ResourcePath {
         f.write_str(&self.0)
     }
 }
-pub trait StaticResourceProvider: Send + Sync {
+pub trait StaticResourceProvider: Send + Sync + Debug {
     /// Attempts to load the entirety of a resource immediately
     fn oneshot(&mut self, id: &ResourcePath, buffer: &mut Vec<u8>) -> Result<(), ResourceError>;
     /// Called before a StaticResourceProvider is used on any given thread
     fn init_on_thread(&mut self);
 }
-pub trait StreamingAudioProvider: Send + Sync {
+pub trait StreamingAudioProvider: Send + Sync + Debug {
     /// Attempts to fill a byte buffer with new data. Returns the number of bytes written.
     /// 0 is considered a valid output, not a failure condition.
     fn read(&mut self, id: usize, buf: &mut [u8]) -> usize;

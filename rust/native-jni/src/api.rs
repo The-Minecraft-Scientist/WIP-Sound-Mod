@@ -53,7 +53,6 @@ impl StateCell {
     fn receive(&self) -> InterfaceToMcTalkBack {
         let state = self.0.get().expect("failed to get global state");
         let res = state.1.recv().unwrap();
-        dbg!(&res);
         res
     }
 }
@@ -87,11 +86,9 @@ pub fn get_sound_data(mut env: JNIEnv, _parent_class: JClass, id: JObject) {
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
 pub fn new_sound_uuid(_env: JNIEnv, _parent_class: JClass) -> jint {
-    println!("new sound created!");
     SENDER.send(McToInterfaceMessage::NewSound);
     match SENDER.receive() {
         InterfaceToMcTalkBack::NewSound(i) => {
-            dbg!(&i);
             i as jint
         }
         _ => {
@@ -104,7 +101,6 @@ pub fn close_uuid(_env: JNIEnv, _parent_class: JClass, _uuid: jint) {}
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
 pub fn play_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint) {
-    println!("sound {:?} requesting play", &uuid);
     SENDER.send(Change(UpdateSound::new(uuid as u32, SoundUpdateType::Play)))
 }
 

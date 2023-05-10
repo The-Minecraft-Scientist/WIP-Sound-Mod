@@ -17,7 +17,7 @@ pub struct SoundModNativeCfg {
 impl Default for SoundModNativeCfg {
     fn default() -> Self {
         Self {
-            cache_size: NonZeroUsize::new(256).expect("unreachable code"),
+            cache_size: NonZeroUsize::new(1024).expect("unreachable code"),
         }
     }
 }
@@ -105,6 +105,11 @@ impl<Static: StaticResourceProvider + 'static, Streaming: StreamingAudioProvider
                         use crate::interface::SoundUpdateType::*;
                         match change {
                             Play => {}
+                            SetPath(p) => {
+                                let mut buf = [0i16; 256];
+                                state.provider.new_static(&p).unwrap().next_block(&mut buf);
+                                dbg!(&buf);
+                            }
                             _ => {}
                         }
                     }

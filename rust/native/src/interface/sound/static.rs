@@ -83,28 +83,23 @@ impl<const BLOCK_LENGTH: usize> StaticSound<BLOCK_LENGTH> {
         //TODO: this is bad
         let _sample_rate = decoder.codec_params().sample_rate.unwrap_or(48_000u32);
 
-        let mut out_vec = {
-            if let Some(sample_rate) = decoder.codec_params().sample_rate {
-                convert(
-                    sample_rate,
-                    48_000u32,
-                    1,
-                    ConverterType::SincBestQuality,
-                    out_vec
-                        .as_slice()
-                        .iter()
-                        .map(|x| <i16 as IntoSample<f32>>::into_sample(*x))
-                        .collect::<Vec<f32>>()
-                        .as_slice(),
-                )?
-                .into_iter()
-                .map(<f32 as IntoSample<i16>>::into_sample)
-                .collect::<Vec<i16>>()
-            }
-            //Assume we have 48khz audio if a sample rate is not provided by the decoder.
-            else {
+        let mut out_vec = match decoder.codec_params().sample_rate {
+            Some(48_000u32) | None => out_vec,
+            Some(sample_rate) => convert(
+                sample_rate,
+                48_000u32,
+                1,
+                ConverterType::SincMediumQuality,
                 out_vec
-            }
+                    .as_slice()
+                    .iter()
+                    .map(|x| <i16 as IntoSample<f32>>::into_sample(*x))
+                    .collect::<Vec<f32>>()
+                    .as_slice(),
+            )?
+            .into_iter()
+            .map(<f32 as IntoSample<i16>>::into_sample)
+            .collect::<Vec<i16>>(),
         };
         let r = BLOCK_LENGTH - out_vec.len() % BLOCK_LENGTH;
         //Pad output to a multiple of block length
