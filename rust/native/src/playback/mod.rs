@@ -1,11 +1,4 @@
-
-use cpal::{
-    Device,
-};
-
-
-
-
+use cpal::Device;
 
 pub struct Player {
     device: Device,
