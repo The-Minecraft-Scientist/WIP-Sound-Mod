@@ -5,12 +5,14 @@ use jni::sys::{jboolean, jdouble, jfloat, jint};
 use jni::JNIEnv;
 use jni_fn::jni_fn;
 use once_cell::sync::OnceCell;
+use soundmod_native::gpu::{DebugRenderer, InterfaceToGpuMessage};
 use soundmod_native::interface::sound::resource::ResourcePath;
 use soundmod_native::interface::McToInterfaceMessage::Change;
 use soundmod_native::interface::{
     InterfaceToMcTalkBack, McToInterfaceMessage, SoundModInterfaceBuilder, SoundUpdateType,
     UpdateSound,
 };
+use std::thread;
 
 #[derive(Debug)]
 pub struct GlobalState(
@@ -70,12 +72,22 @@ pub fn init(env: JNIEnv, _parent_class: JClass, resource_class: JClass) {
     let builder = SoundModInterfaceBuilder::new(
         JNIStaticSoundProvider::new(
             env.get_java_vm()
-                .expect("failed to get JavaVM while initalizing"),
+                .expect("failed to get JavaVM while initializing"),
             global,
         ),
         (),
     );
-    SENDER.set(builder.run())
+    SENDER.set(builder.run());
+    let (tx, rx) = crossbeam::channel::unbounded::<InterfaceToGpuMessage>();
+    thread::spawn(move || {
+        println!("starting debug renderer");
+        let mut renderer = pollster::block_on(DebugRenderer::new(rx));
+        println!("calling render()");
+        //TODO: map this to an mc keybind for ""very"" convenient debugging
+        pollster::block_on(DebugRenderer::render(&mut renderer)).unwrap();
+    })
+    .join()
+    .unwrap();
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
@@ -88,9 +100,7 @@ pub fn get_sound_data(mut env: JNIEnv, _parent_class: JClass, id: JObject) {
 pub fn new_sound_uuid(_env: JNIEnv, _parent_class: JClass) -> jint {
     SENDER.send(McToInterfaceMessage::NewSound);
     match SENDER.receive() {
-        InterfaceToMcTalkBack::NewSound(i) => {
-            i as jint
-        }
+        InterfaceToMcTalkBack::NewSound(i) => i as jint,
         _ => {
             panic!("received wrong talkback method")
         }

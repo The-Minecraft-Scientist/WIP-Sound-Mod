@@ -4,6 +4,11 @@ pub mod trace;
 use crate::gpu::trace::chunk::Chunk;
 use crossbeam::channel::Receiver;
 use glam::{IVec2, UVec2};
+use image::ImageBuffer;
+use wgpu::{
+    Buffer, Extent3d, RenderPipeline, ShaderModuleDescriptor, TextureDescriptor, TextureDimension,
+    TextureFormat, TextureView,
+};
 use winit::window::Window;
 use winit::{
     event::*,
@@ -15,34 +20,25 @@ pub enum InterfaceToGpuMessage {
     SetChunkAt(IVec2, Chunk),
 }
 pub struct DebugRenderer {
-    surface: wgpu::Surface,
+    render_pipeline: RenderPipeline,
+    out_buf: Buffer,
+    texture: wgpu::Texture,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
-    size: winit::dpi::PhysicalSize<u32>,
-    window: Window,
     receiver: Receiver<InterfaceToGpuMessage>,
 }
 impl DebugRenderer {
-    pub async fn new(
-        event_loop: &EventLoop<()>,
-        receiver: Receiver<InterfaceToGpuMessage>,
-    ) -> Self {
+    pub async fn new(receiver: Receiver<InterfaceToGpuMessage>) -> Self {
         env_logger::init();
-        let window = WindowBuilder::new().build(&event_loop).unwrap();
-        let size = window.inner_size();
-
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             dx12_shader_compiler: Default::default(),
         });
 
-        let surface = unsafe { instance.create_surface(&window) }.unwrap();
-
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
-                compatible_surface: Some(&surface),
+                compatible_surface: None,
                 force_fallback_adapter: false,
             })
             .await
@@ -54,81 +50,105 @@ impl DebugRenderer {
                     features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    },
+                    limits: wgpu::Limits::default(),
                     label: None,
                 },
                 None, // Trace path
             )
             .await
             .unwrap();
-        let surface_caps = surface.get_capabilities(&adapter);
-
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(surface_caps.formats[0]);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: size.width,
-            height: size.height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![],
+        let tex_desc = TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: 1920,
+                height: 1080,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[TextureFormat::Rgba8UnormSrgb],
         };
-        surface.configure(&device, &config);
+        let texture = device.create_texture(&tex_desc);
+        let output_buffer_size =
+            (std::mem::size_of::<u32>() as u32 * 1920 * 1080) as wgpu::BufferAddress;
+        let output_buffer_desc = wgpu::BufferDescriptor {
+            size: output_buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            label: None,
+            mapped_at_creation: false,
+        };
+        let out_buf = device.create_buffer(&output_buffer_desc);
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/shared.wgsl"));
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
+
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main", // 1.
+                buffers: &[],           // 2.
+            },
+            fragment: Some(wgpu::FragmentState {
+                // 3.
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    // 4.
+                    format: texture.format(),
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList, // 1.
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw, // 2.
+                cull_mode: Some(wgpu::Face::Back),
+                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                polygon_mode: wgpu::PolygonMode::Fill,
+                // Requires Features::DEPTH_CLIP_CONTROL
+                unclipped_depth: false,
+                // Requires Features::CONSERVATIVE_RASTERIZATION
+                conservative: false,
+            },
+            depth_stencil: None, // 1.
+            multisample: wgpu::MultisampleState {
+                count: 1,                         // 2.
+                mask: !0,                         // 3.
+                alpha_to_coverage_enabled: false, // 4.
+            },
+            multiview: None, // 5.
+        });
 
         Self {
-            size,
-            window,
-            surface,
+            render_pipeline,
+            out_buf,
+            texture,
             device,
             queue,
-            config,
             receiver,
         }
     }
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
-        }
-    }
-    fn input(&mut self, event: &WindowEvent) -> bool {
-        false
-    }
-    fn update(&mut self) {
-        let mut iter = self.receiver.iter();
-        loop {
-            if self.receiver.is_empty() {
-                break;
-            }
-            let Some(msg) = iter.next() else {break};
-            match msg {
-                InterfaceToGpuMessage::SetChunkAt(pos, data) => {}
-            }
-        }
-    }
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+
+    pub async fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        let view = self.texture.create_view(&Default::default());
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
         {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let render_pass_desc = wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
@@ -144,44 +164,50 @@ impl DebugRenderer {
                     },
                 })],
                 depth_stencil_attachment: None,
-            });
+            };
+            let mut render_pass = encoder.begin_render_pass(&render_pass_desc);
+
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.draw(0..3, 0..1);
         }
-        self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &self.out_buf,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(std::mem::size_of::<u32>() as u32 * 1920),
+                    rows_per_image: Some(1080),
+                },
+            },
+            Extent3d {
+                width: 1920,
+                height: 1080,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.queue.submit(Some(encoder.finish()));
+
+        {
+            let sliced = self.out_buf.slice(..);
+            let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+            sliced.map_async(wgpu::MapMode::Read, move |result| {
+                tx.send(result).unwrap();
+            });
+            self.device.poll(wgpu::Maintain::Wait);
+            rx.receive().await.unwrap().unwrap();
+            let data = sliced.get_mapped_range();
+
+            use image::{ImageBuffer, Rgba};
+            let buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(1920, 1080, data).unwrap();
+            let _ = std::fs::remove_file("image.png");
+            buffer.save("image.png").expect("failed to save image");
+        }
         Ok(())
     }
-}
-pub async fn run(receiver: Receiver<InterfaceToGpuMessage>) {
-    let event_loop = EventLoop::new();
-    let mut state = DebugRenderer::new(&event_loop, receiver).await;
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == state.window.id() => {
-            if !state.input(event) {
-                // UPDATED!
-                match event {
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
-                    }
-                    WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        state.resize(**new_inner_size);
-                    }
-                    _ => {}
-                }
-            }
-        }
-        _ => {}
-    });
 }
