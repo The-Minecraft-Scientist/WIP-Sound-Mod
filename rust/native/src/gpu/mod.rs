@@ -48,8 +48,6 @@ impl DebugRenderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     features: wgpu::Features::empty(),
-                    // WebGL doesn't support all of wgpu's features, so if
-                    // we're building for the web we'll have to disable some.
                     limits: wgpu::Limits::default(),
                     label: None,
                 },
@@ -59,7 +57,7 @@ impl DebugRenderer {
             .unwrap();
         let tex_desc = TextureDescriptor {
             label: None,
-            size: wgpu::Extent3d {
+            size: Extent3d {
                 width: 1920,
                 height: 1080,
                 depth_or_array_layers: 1,

@@ -35,13 +35,12 @@ fn block_mref(pos: vec3<u32>) -> u32 {
     let chunkptr = &chunks[chunk_index(cpos.x, cpos.y)];
     let locpos = vec3(pos.xz & vec2(0xFu), pos.y);
     let locind = locpos.x | (((locpos.y << 4u) | locpos.z) << 4u);
-    if bool(locind & 1u) {
-        //Higher u16
-        return ((*chunkptr).chunk_mrefs[locind >> 1u] & 0xFFFF0000u) >> 16u;
-    } else {
-        //Lower u16
-        return (*chunkptr).chunk_mrefs[locind >> 1u] & 0xFFFFu;
-    }
+    let l = locind & 1u;
+    var out = 0u;
+    let dat = (*chunkptr).chunk_mrefs[locind >> 1u];
+    out += l * (dat >> 16u);
+    out += (1u-l) * (dat & 0xFFFFu);
+    return out;
 }
 
 
