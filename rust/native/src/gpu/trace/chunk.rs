@@ -10,8 +10,8 @@ pub struct Material {
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
 #[repr(C)]
 pub struct Chunk {
-    chunk_mask: [u32; 24576],
-    mats: [Material; 255],
+    // 16 chunk side * 16 chunk side * 384 world height * 16 bits / 32 bits of storage
+    chunk_mrefs: [u32; 49152],
 }
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
 #[repr(C)]

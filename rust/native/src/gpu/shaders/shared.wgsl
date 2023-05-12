@@ -4,37 +4,45 @@ struct Material {
 }
 // 24576 = 16 * 16 * 384 / 4 (16x16x384 chunk, 1byte material refs, 4 bytes per u32)
 struct Chunk {
-    chunk_mask: array<u32, 24576>,
-    // only store 255 materials, we can hardcode the properties of AIR (mat 0)
-    mats: array<Material, 255>,
+    chunk_mrefs: array<u32, 24576>,
 }
-
-struct ChunkIndexTable {
-    data: array<array<u32, RESC_WORLD_SIDE>, RESC_WORLD_SIDE>
+struct Uniforms {
+    chunk_index_table: array<vec4<u32>, 256u>,
+}
+@group(0) @binding(2)
+var<uniform> uniforms: Uniforms;
+//DANGEROUS! CAN INDEX OUT OF BOUNDS IF INPUTS ARE NOT <16
+fn chunk_index(cx: u32, cz: u32) -> u32 {
+    let ind = (cx << 4u) | cz;
+    switch ind & 3u {
+        case 0u: {return uniforms.chunk_index_table[ind].x;}
+        case 1u: {return uniforms.chunk_index_table[ind].y;}
+        case 2u: {return uniforms.chunk_index_table[ind].z;}
+        case 3u: {return uniforms.chunk_index_table[ind].w;}
+        case default: {return 0u;}
+    }
 }
 
 @group(0) @binding(0)
-var<storage, read> chunk_index_table: ChunkIndexTable;
+var<storage, read> chunks: array<Chunk>;
 
 @group(0) @binding(1)
-var<storage, read> chunk_data: array<Chunk>;
+var<storage, read> materials: array<Material>;
 
-fn block_mref(pos: vec3<u32>) -> bool {
+// ! ASSUMES VALID COORDINATES ! ! BE CAREFUL !
+fn block_mref(pos: vec3<u32>) -> u32 {
     let cpos = pos.xz >> vec2(4u);
-    let chunkptr = &chunk_data[(chunk_index_table.data[cpos.x][cpos.y])];
+    let chunkptr = &chunks[chunk_index(cpos.x, cpos.y)];
     let locpos = vec3(pos.xz & vec2(0xFu), pos.y);
     let locind = locpos.x | (((locpos.y << 4u) | locpos.z) << 4u);
-    return bool((*chunkptr).chunk_mask[locind >> 5u] & (1u << (locind & 0x1Fu)));
-};
-const AIR = Material(0.0);
-fn block_mat(pos: vec3<u32>) -> Material {
-    let cpos = pos.xz >> vec2(4u);
-    let chunkptr = &chunk_data[(chunk_index_table.data[cpos.x][cpos.y])];
-    let locpos = vec3(pos.xz & vec2(0xFu), pos.y);
-    let locind = locpos.x | (((locpos.y << 4u) | locpos.z) << 4u);
-    let matind = (*chunkptr).chunk_mask[locind >> 5u] & (1u << (locind & 0x1Fu));
-    if matind == 0u {return AIR;} else {return (*chunkptr).mats[matind - 1u];}
-};
+    if bool(locind & 1u) {
+        //Higher u16
+        return ((*chunkptr).chunk_mrefs[locind >> 1u] & 0xFFFF0000u) >> 16u;
+    } else {
+        //Lower u16
+        return (*chunkptr).chunk_mrefs[locind >> 1u] & 0xFFFFu;
+    }
+}
 
 
 struct VertexOutput {
