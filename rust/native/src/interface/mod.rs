@@ -108,7 +108,6 @@ impl<Static: StaticResourceProvider + 'static, Streaming: StreamingAudioProvider
                             SetPath(p) => {
                                 let mut buf = [0i16; 256];
                                 state.provider.new_static(&p).unwrap().next_block(&mut buf);
-                                dbg!(&buf);
                             }
                             _ => {}
                         }
