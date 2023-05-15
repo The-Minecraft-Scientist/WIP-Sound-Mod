@@ -5,6 +5,7 @@ use crate::interface::sound::resource::{
 
 use crossbeam::channel::{Receiver, Sender};
 use std::num::NonZeroUsize;
+use std::ops::Deref;
 use std::thread::spawn;
 
 pub mod sound;
@@ -29,21 +30,35 @@ pub enum InterfaceToMcTalkBack {
     IsStopped(bool),
     IsPlaying(bool),
 }
+
 #[derive(Clone, Debug)]
 pub enum SoundUpdateType {
+    /// Permanently closes this sound
     Close,
+    /// Play this sound
     Play,
+    /// Pause this sound
     Pause,
+    /// Resume this sound
     Resume,
+    /// Respond with the playback state of this sound
     CheckIsPlaying,
+    /// Respond whether this sound has been stopped
     CheckIsStopped,
+    /// Set the position of this sound
     SetPosition(f64, f64, f64),
+    /// Set the pitch of this sound
     SetPitch(f32),
+    /// Whether this sound should restart after it completes
     SetLooping(bool),
+    /// Whether the location should be relative to the listener or relative to the world origin
     SetRelative(bool),
+    /// Set the static sound at this ResourcePath as this sound
     SetPath(ResourcePath),
+    /// Same as above. Streaming in OGGs is not currently implemented
     SetPathStreaming(ResourcePath),
-    SetCustomStreamImpl(),
+    /// Sets a custom stream implementation. All this contains is an integer id, this logic should be handled by the StreamingAudioProvider.
+    SetCustomStreamImpl(u32),
 }
 #[derive(Debug, Clone)]
 pub struct UpdateSound {
