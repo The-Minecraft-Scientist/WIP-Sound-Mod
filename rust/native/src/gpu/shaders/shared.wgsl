@@ -12,13 +12,13 @@ struct Uniforms {
 @group(0) @binding(2)
 var<uniform> uniforms: Uniforms;
 //DANGEROUS! CAN INDEX OUT OF BOUNDS IF INPUTS ARE NOT <16
-fn chunk_index(cx: u32, cz: u32) -> u32 {
-    let ind = (cx << 4u) | cz;
+fn chunk_index(pos: vec2<u32>) -> u32 {
+    let ind = (pos.x << 4u) | pos.y;
     switch ind & 3u {
-        case 0u: {return uniforms.chunk_index_table[ind].x;}
-        case 1u: {return uniforms.chunk_index_table[ind].y;}
-        case 2u: {return uniforms.chunk_index_table[ind].z;}
-        case 3u: {return uniforms.chunk_index_table[ind].w;}
+        case 0u: {return uniforms.chunk_index_table[ind >> 2].x;}
+        case 1u: {return uniforms.chunk_index_table[ind >> 2].y;}
+        case 2u: {return uniforms.chunk_index_table[ind >> 2].z;}
+        case 3u: {return uniforms.chunk_index_table[ind >> 2].w;}
         case default: {return 0u;}
     }
 }
@@ -32,7 +32,7 @@ var<storage, read> materials: array<Material>;
 // ! ASSUMES VALID COORDINATES ! ! BE CAREFUL !
 fn block_mref(pos: vec3<u32>) -> u32 {
     let cpos = pos.xz >> vec2(4u);
-    let chunkptr = &chunks[chunk_index(cpos.x, cpos.y)];
+    let chunkptr = &chunks[chunk_index(cpos)];
     let locpos = vec3(pos.xz & vec2(0xFu), pos.y);
     let locind = locpos.x | (((locpos.y << 4u) | locpos.z) << 4u);
     let l = locind & 1u;
@@ -52,6 +52,7 @@ struct VertexOutput {
 fn vs_main(@builtin(vertex_index) in_vert_index: u32) -> VertexOutput {
     var out: VertexOutput;
     switch in_vert_index {
+    //Awesome hardcoded quad
         case 0u: {out.clip_position = vec4(1.0, 1.0, 0.0, 1.0);}
         case 1u: {out.clip_position = vec4(-1.0, 1.0, 0.0, 1.0);}
         case 2u: {out.clip_position = vec4(-1.0, -1.0, 0.0, 1.0);}

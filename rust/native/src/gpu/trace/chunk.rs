@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{UVec2, UVec3, Vec3Swizzles};
+use glam::{UVec2, UVec4, Vec3Swizzles};
 const WORLD_SIZE: usize = 7;
 
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
@@ -16,11 +16,29 @@ pub struct Chunk {
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
 #[repr(C)]
 pub struct ChunkIndexTable {
-    data: [[u32; WORLD_SIZE]; WORLD_SIZE],
+    data: [UVec4; 256],
 }
 impl ChunkIndexTable {
-    fn index(&self, pos: UVec3) -> u32 {
-        let cpos: UVec2 = pos.xy() >> 4;
-        self.data[cpos.x as usize][cpos.y as usize]
+    pub const fn new() -> Self {
+        Self {
+            data: [UVec4::splat(0); 256],
+        }
+    }
+    /// Sets the chunk offset corresponding to this position
+    pub fn set_at_unchecked(&mut self, pos: UVec2, offset: u32) {
+        let index = (pos.y << 4) | pos.x;
+        let mut val: &mut UVec4 = &mut self.data[index as usize];
+        match index & 3 {
+            0 => val.x = offset,
+            1 => val.y = offset,
+            2 => val.z = offset,
+            3 => val.w = offset,
+            _ => {
+                panic!("unreachable code")
+            }
+        }
+    }
+    fn set_at(&mut self, pos: UVec2, offset: u32) {
+        self.set_at_unchecked()
     }
 }

@@ -34,6 +34,7 @@ public class AudioChunk {
                 continue;
             }
             //this cast hopefully shouldn't fail
+            @SuppressWarnings("unchecked cast")
             PalettedContainerAccessor<BlockState> container = (PalettedContainerAccessor<BlockState>) thisSection.getBlockStateContainer();
             for(int j = 0; j < 4096; j += 4) {
 
@@ -52,12 +53,15 @@ public class AudioChunk {
     //ensure this is FAST and COMPACT!!! IT CAN BE CALLED 98304 times PER CHUNK
 
     //Moving this to Rust side is an option but I'm ignoring it for now because it would be really annoying to implement
-    // Additionally, the overhead from sending string blockstate ids in an Object[] instead of a tidy direct byte buffer I can get a raw pointer into
+    // Additionally, the overhead from sending string block state ids in an Object[] instead of a tidy direct byte buffer I can get a raw pointer into
     // probably outweighs the potential performance gains.
     private long makeMatIndex(BlockState b) {
-        return 0L;
+        if(b.isAir()) {return 0L;}
+        return 1L;
     }
 
+    //Called from native code
+    @SuppressWarnings("unused")
     public ByteBuffer getBackingBuffer() {
         return this.mref_buf;
     }

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 wgpu = "0.16.0"
-glam = "0.24.0"
+glam = {version = "0.24.0", features = ["bytemuck"] }
 cpal = "0.15.2"
 crossbeam = "0.8.2"
 symphonia = {version = "0.5.2", features = ["symphonia-format-ogg", "symphonia-codec-vorbis"]}
