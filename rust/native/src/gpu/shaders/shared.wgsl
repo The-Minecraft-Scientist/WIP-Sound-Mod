@@ -7,13 +7,14 @@ struct Chunk {
     chunk_mrefs: array<u32, 24576>,
 }
 struct Uniforms {
+    //We pack 4 array entries at every index due to offset restraints
     chunk_index_table: array<vec4<u32>, 256u>,
 }
 @group(0) @binding(2)
 var<uniform> uniforms: Uniforms;
 //DANGEROUS! CAN INDEX OUT OF BOUNDS IF INPUTS ARE NOT <16
 fn chunk_index(pos: vec2<u32>) -> u32 {
-    let ind = (pos.x << 4u) | pos.y;
+    let ind = (pos.y << 6u) | pos.x;
     switch ind & 3u {
         case 0u: {return uniforms.chunk_index_table[ind >> 2].x;}
         case 1u: {return uniforms.chunk_index_table[ind >> 2].y;}
