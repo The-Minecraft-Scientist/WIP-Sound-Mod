@@ -2,7 +2,7 @@ use crate::gpu::trace::chunk::{Chunk, ChunkIndexTable, Material};
 use glam::{IVec2, IVec3};
 use std::collections::{HashMap, VecDeque};
 use wgpu::util::StagingBelt;
-use wgpu::{Buffer, BufferAddress, BufferDescriptor, CommandEncoder, Device};
+use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSize, CommandEncoder, Device};
 
 pub struct SoundModTraceState<'a> {
     chunk_buffer: Buffer,
@@ -46,20 +46,29 @@ impl<'a> SoundModTraceState<'a> {
         }
         self.current_diff = Some(vec![]);
         //SAFETY: we have ensured that current diff is Some
-        unsafe { &mut self.current_diff.unwrap_unchecked().push(change) };
+        //TODO: this is stupid, llvm will just optimize the checks out
+        unsafe { self.current_diff.as_mut().unwrap_unchecked().push(change) }
     }
     pub fn apply_diffs(&mut self, device: &mut Device, encoder: &mut CommandEncoder) {
-        let Some(diffs) = &mut self.current_diff.take() else {
+        let Some(diffs) = self.current_diff.take() else {
             return;
         };
-        for diff in (*diffs).into_iter() {
+        for diff in diffs.into_iter() {
             match diff {
                 WorldChange::Section { location, new } => {
-                    let view = self.staging_belt.write_buffer(encoder, &self.chunk_buffer);
+                    let mut view = self.staging_belt.write_buffer(
+                        encoder,
+                        &self.chunk_buffer,
+                        self.chunk_allocator.get_or_alloc(location.chunk_coords),
+                        BufferSize::new(Chunk::SINGLE_SECTION_MREF_BUF_BYTE_SIZE as u64).unwrap(),
+                        device,
+                    );
+                    view.copy_from_slice(bytemuck::cast_slice(new));
                 }
                 WorldChange::Material { id, new } => {}
             }
         }
+        self.staging_belt.finish();
     }
 }
 
@@ -67,6 +76,7 @@ pub struct ChunkAllocator {
     chunks: HashMap<IVec2, ChunkAllocation>,
     counter: usize,
     buffer_size: usize,
+    current_head: Option<ChunkAllocation>,
 }
 #[derive(Copy, Clone, Debug)]
 pub struct ChunkAllocation(BufferAddress, usize);
@@ -77,29 +87,45 @@ impl ChunkAllocator {
             chunks: HashMap::with_capacity(128),
             buffer_size,
             counter: 0,
+            current_head: None,
         }
     }
     pub fn allocate(&mut self, chunk_coords: IVec2) -> BufferAddress {
         //TODO: make this a bit more intelligent
         if self.chunks.len() == self.buffer_size / Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as usize {
-            let mut iter = self.chunks.iter();
-            let mut oldest = iter.next().unwrap();
-            //drop the oldest chunk
-            for i in iter {
-                if i.1 .1 < oldest.1 .1 {
-                    oldest = i;
+            let oldest = {
+                let mut iter = self.chunks.iter();
+                let mut oldest = iter.next().unwrap();
+                //drop the oldest chunk
+                for i in iter {
+                    if i.1 .1 < oldest.1 .1 {
+                        oldest = i;
+                    }
                 }
-            }
+                (*oldest.0, *oldest.1)
+            };
             let _ = self
                 .chunks
                 .insert(chunk_coords, ChunkAllocation(oldest.1 .0, self.counter));
             self.counter += 1;
             return oldest.1 .0;
         }
-
-        let new_index = current_head.1 + Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as BufferAddress;
-        self.chunks.push_back((chunk_coords, new_index));
+        let head = match self.current_head {
+            Some(h) => h,
+            None => ChunkAllocation(0, 0),
+        };
+        let new_index = head.0 + Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as BufferAddress;
+        self.counter += 1;
+        let _ = self
+            .chunks
+            .insert(chunk_coords, ChunkAllocation(new_index, self.counter));
         new_index
+    }
+    pub fn get_or_alloc(&mut self, chunk_coords: IVec2) -> BufferAddress {
+        if let Some(alloc) = self.chunks.get(&chunk_coords) {
+            return alloc.0;
+        };
+        self.allocate(chunk_coords)
     }
 }
 
@@ -108,7 +134,7 @@ pub struct WorldStateDiff<'a>(Vec<WorldChange<'a>>);
 pub enum WorldChange<'a> {
     Section {
         location: ChunkSectionLocation,
-        new: &'a [u16; 16 * 16 * 16 as usize],
+        new: &'a [u16; 16 * 16 * 16],
     },
     Material {
         id: u16,

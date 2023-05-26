@@ -14,6 +14,7 @@ pub struct Chunk {
 }
 impl Chunk {
     pub const SINGLE_CHUNK_MREF_BUF_BYTE_SIZE: u32 = 16 * 16 * 384 * 2;
+    pub const SINGLE_SECTION_MREF_BUF_BYTE_SIZE: u32 = Self::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE / 24;
 }
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
 #[repr(C)]

@@ -2,9 +2,9 @@ const RESC_WORLD_SIDE = 7u;
 struct Material {
     property_idk: f32,
 }
-// 24576 = 16 * 16 * 384 / 4 (16x16x384 chunk, 1byte material refs, 4 bytes per u32)
+// 24576 = 16 * 16 * 384 / 2 (16x16x384 chunk, 2byte material refs, 4 bytes per u32)
 struct Chunk {
-    chunk_mrefs: array<u32, 24576>,
+    chunk_mrefs: array<u32, 49152>,
 }
 struct Uniforms {
     //We pack 4 array entries at every index due to offset restraints
@@ -16,10 +16,10 @@ var<uniform> uniforms: Uniforms;
 fn chunk_index(pos: vec2<u32>) -> u32 {
     let ind = (pos.y << 6u) | pos.x;
     switch ind & 3u {
-        case 0u: {return uniforms.chunk_index_table[ind >> 2].x;}
-        case 1u: {return uniforms.chunk_index_table[ind >> 2].y;}
-        case 2u: {return uniforms.chunk_index_table[ind >> 2].z;}
-        case 3u: {return uniforms.chunk_index_table[ind >> 2].w;}
+        case 0u: {return uniforms.chunk_index_table[ind >> 2u].x;}
+        case 1u: {return uniforms.chunk_index_table[ind >> 2u].y;}
+        case 2u: {return uniforms.chunk_index_table[ind >> 2u].z;}
+        case 3u: {return uniforms.chunk_index_table[ind >> 2u].w;}
         case default: {return 0u;}
     }
 }
@@ -68,7 +68,7 @@ fn vs_main(@builtin(vertex_index) in_vert_index: u32) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
-    return in.clip_position / vec4(vec2(2880.0, 1800.0), 1.0, 1.0);
+    return in.clip_position / vec4(vec2(1920.0, 1080.0), 1.0, 1.0);
 }
 
 
