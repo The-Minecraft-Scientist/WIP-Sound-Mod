@@ -1,4 +1,3 @@
-mod buffer;
 pub mod convolve;
 pub mod trace;
 

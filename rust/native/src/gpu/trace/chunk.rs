@@ -28,7 +28,7 @@ impl ChunkIndexTable {
     }
     /// Sets the chunk offset corresponding to this position
     pub fn set_at(&mut self, pos: UVec2, offset: u32) {
-        debug_assert!(pos.x < 32 || pos.y < 32);
+        assert!(pos.x < 32 || pos.y < 32);
         let index = (pos.y << 4) | pos.x;
         let mut val: &mut UVec4 = &mut self.data[index as usize];
         match index & 3 {
@@ -36,6 +36,20 @@ impl ChunkIndexTable {
             1 => val.y = offset,
             2 => val.z = offset,
             3 => val.w = offset,
+            _ => {
+                panic!("unreachable code")
+            }
+        }
+    }
+    pub fn get_at(&mut self, pos: UVec2) -> u32 {
+        assert!(pos.x < 32 || pos.y < 32);
+        let index = (pos.y << 4) | pos.x;
+        let mut val: &mut UVec4 = &mut self.data[index as usize];
+        match index & 3 {
+            0 => val.x,
+            1 => val.y,
+            2 => val.z,
+            3 => val.w,
             _ => {
                 panic!("unreachable code")
             }
