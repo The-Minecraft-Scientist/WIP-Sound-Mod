@@ -131,7 +131,7 @@ pub fn resume_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint) {
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
 pub fn is_playing_uuid(_env: JNIEnv, _parent_class: JClass, uuid: jint) -> jboolean {
-    SENDER.send(McToInterfaceMessage::Change(UpdateSound::new(
+    SENDER.send(Change(UpdateSound::new(
         uuid as u32,
         SoundUpdateType::CheckIsPlaying,
     )));

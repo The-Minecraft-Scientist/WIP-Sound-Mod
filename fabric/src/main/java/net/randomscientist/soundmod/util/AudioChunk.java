@@ -3,13 +3,14 @@ package net.randomscientist.soundmod.util;
 import net.minecraft.block.BlockState;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
+import net.randomscientist.soundmod.SoundMod;
 import net.randomscientist.soundmod.mixins.ChunkSectionAccessor;
 import net.randomscientist.soundmod.mixins.PalettedContainerAccessor;
 
 import java.nio.ByteBuffer;
 
 public class AudioChunk {
-
+    public boolean read = false;
     private final ByteBuffer mref_buf;
     public AudioChunk() {
         this.mref_buf = ByteBuffer.allocateDirect(Constants.CHUNK_MREF_BUF_BYTE_SIZE);
@@ -17,19 +18,21 @@ public class AudioChunk {
     }
     public void readChunkInto(WorldChunk chunk) {
         this.mref_buf.clear();
+        //This needs to be incremented whenever we write new things to the buffer. Needs to be 8-byte aligned
         ChunkSection[] sections = chunk.getSectionArray();
         long current;
         for(int i = 0; i < 24; i++) {
             if(sections[i] == null) {
-                this.mref_buf.asShortBuffer().put(Constants.EMPTY_CHUNK_SECTION);
+                //TODO: track offset
+                this.mref_buf.asShortBuffer().put(Constants.EMPTY_CHUNK_SECTION.clone());
                 this.mref_buf.position(this.mref_buf.position() + 4096 * 2);
                 continue;
             }
             ChunkSectionAccessor thisSection = (ChunkSectionAccessor) sections[i];
             // If this chunk is empty, write air to it.
             if((thisSection.getNonEmptyBlockCount() == 0 && thisSection.getNonEmptyFluidCount() == 0)) {
-                this.mref_buf.asShortBuffer().put(Constants.EMPTY_CHUNK_SECTION);
-                // 1 ChunkSection == 4096 shorts. 1 short = 2 bytes.
+                //TODO: track offset
+                this.mref_buf.asShortBuffer().put(Constants.EMPTY_CHUNK_SECTION.clone());
                 this.mref_buf.position(this.mref_buf.position() + 4096 * 2);
                 continue;
             }
@@ -38,7 +41,7 @@ public class AudioChunk {
             PalettedContainerAccessor<BlockState> container = (PalettedContainerAccessor<BlockState>) thisSection.getBlockStateContainer();
             for(int j = 0; j < 4096; j += 4) {
 
-                //explicitly vectorize an inner 4-iteration for loop needed to fill current with data
+                //explicitly vectorize an inner 4-long for loop needed to fill current with data
                 current = makeMatIndex(container.invokeGet(j)) |
                         ( makeMatIndex(container.invokeGet(j + 1)) << 16 ) |
                         ( makeMatIndex(container.invokeGet(j + 2)) << 32 ) |
