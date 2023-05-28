@@ -46,7 +46,7 @@ impl<'a> SoundModTraceState<'a> {
         }
         self.current_diff = Some(vec![]);
         //SAFETY: we have ensured that current diff is Some
-        //TODO: this is stupid, llvm will just optimize the checks out
+        //TODO: this is stupid, llvm will probably just optimize the checks out
         unsafe { self.current_diff.as_mut().unwrap_unchecked().push(change) }
     }
     pub fn apply_diffs(&mut self, device: &mut Device, encoder: &mut CommandEncoder) {
@@ -70,6 +70,7 @@ impl<'a> SoundModTraceState<'a> {
         }
         self.staging_belt.finish();
     }
+    pub fn make_chunk_index_table(&self, center: IVec2) -> ChunkIndexTable {}
 }
 
 pub struct ChunkAllocator {

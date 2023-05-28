@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{UVec2, UVec4};
+use glam::{IVec2, UVec2, UVec4};
 
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
 #[repr(C)]
@@ -55,5 +55,16 @@ impl ChunkIndexTable {
                 panic!("unreachable code")
             }
         }
+    }
+}
+pub struct ChunkIndexTransform {
+    origin: IVec2,
+    radius: u32,
+}
+impl ChunkIndexTransform {
+    pub fn transform_to_local(&self, global_chunk_pos: IVec2) -> Option<UVec2> {
+        let mut res = global_chunk_pos - self.origin;
+        res += IVec2::splat(self.radius as i32);
+        return Some(res.as_uvec2());
     }
 }
