@@ -4,7 +4,6 @@ import net.minecraft.client.sound.AudioStream;
 import net.minecraft.client.sound.SoundLoader;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
-import net.randomscientist.soundmod.SoundMod;
 import net.randomscientist.soundmod.sound.RustOggStream;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;

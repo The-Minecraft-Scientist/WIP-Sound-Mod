@@ -17,8 +17,8 @@
   "license": "CC0-1.0",
   "environment": "*",
   "entrypoints": {
-    "main": [
-      "net.randomscientist.soundmod.SoundMod"
+    "client": [
+      "net.randomscientist.soundmod.SoundModClient"
     ]
   },
   "mixins": [

@@ -9,15 +9,12 @@ use wgpu::{
     Buffer, Extent3d, RenderPipeline, ShaderModuleDescriptor, TextureDescriptor, TextureDimension,
     TextureFormat, TextureView,
 };
-use winit::window::Window;
-use winit::{
-    event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
-};
+
+use crate::gpu::trace::world::{TraceState, WorldChange};
 
 pub enum InterfaceToGpuMessage {
-    SetChunkAt(IVec2, Chunk),
+    WorldChange(WorldChange),
+    RunDebugRender,
 }
 pub struct DebugRenderer {
     render_pipeline: RenderPipeline,
@@ -25,10 +22,10 @@ pub struct DebugRenderer {
     texture: wgpu::Texture,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    receiver: Receiver<InterfaceToGpuMessage>,
+    world_state: TraceState,
 }
 impl DebugRenderer {
-    pub async fn new(receiver: Receiver<InterfaceToGpuMessage>) -> Self {
+    pub async fn new() -> Self {
         env_logger::init();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -127,14 +124,14 @@ impl DebugRenderer {
             },
             multiview: None, // 5.
         });
-
+        let world_state = TraceState::new(&device);
         Self {
             render_pipeline,
             out_buf,
             texture,
             device,
             queue,
-            receiver,
+            world_state,
         }
     }
 
@@ -168,6 +165,7 @@ impl DebugRenderer {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.draw(0..6, 0..1);
         }
+        self.world_state.apply_diffs(&self.device, &mut encoder);
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
                 aspect: wgpu::TextureAspect::All,
@@ -190,7 +188,6 @@ impl DebugRenderer {
             },
         );
         self.queue.submit(Some(encoder.finish()));
-
         {
             let sliced = self.out_buf.slice(..);
             let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
@@ -206,6 +203,18 @@ impl DebugRenderer {
             let _ = std::fs::remove_file("image.png");
             buffer.save("image.png").expect("failed to save image");
         }
+        self.out_buf.unmap();
         Ok(())
+    }
+    pub fn process(&mut self, msg: InterfaceToGpuMessage) {
+        match msg {
+            InterfaceToGpuMessage::WorldChange(change) => {
+                self.world_state.queue_diff(change);
+            }
+            InterfaceToGpuMessage::RunDebugRender => {
+                println!("running render!");
+                pollster::block_on(self.render()).unwrap();
+            }
+        }
     }
 }

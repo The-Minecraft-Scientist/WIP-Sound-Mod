@@ -1,6 +1,6 @@
 package net.randomscientist.soundmod.rust;
 
-import net.randomscientist.soundmod.SoundMod;
+import net.randomscientist.soundmod.SoundModClient;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.*;
@@ -10,7 +10,7 @@ public class SoundModLib {
         String overwrite = System.getProperty("soundmod.native_lib");
         if (overwrite != null) {
             File overwriteFile = new File(overwrite).getAbsoluteFile();
-            SoundMod.LOGGER.info("Using native overwrite: " + overwriteFile);
+            SoundModClient.LOGGER.info("Using native overwrite: " + overwriteFile);
             System.load(overwriteFile.getAbsolutePath());
             return;
         }
@@ -31,7 +31,7 @@ public class SoundModLib {
 
         String fileName = System.mapLibraryName("native-jni");
         File nativesFile = new File(dstDirectory, fileName);
-        SoundMod.LOGGER.info("Extracting natives to " + nativesFile);
+        SoundModClient.LOGGER.info("Extracting natives to " + nativesFile);
 
         if(nativesFile.isFile()) {
             if (!nativesFile.delete()) {

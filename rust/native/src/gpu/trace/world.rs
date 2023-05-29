@@ -1,21 +1,24 @@
 use crate::gpu::trace::chunk::{Chunk, ChunkIndexTable, Material};
-use glam::{IVec2, IVec3};
-use std::collections::{HashMap, VecDeque};
+use glam::{I64Vec2, IVec2};
+use std::collections::HashMap;
+use std::sync::Arc;
 use wgpu::util::StagingBelt;
 use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSize, CommandEncoder, Device};
 
-pub struct SoundModTraceState<'a> {
+pub struct TraceState {
     chunk_buffer: Buffer,
     material_buf: Buffer,
-    staging_belt: StagingBelt,
+    pub staging_belt: StagingBelt,
     chunk_allocator: ChunkAllocator,
-    current_diff: Option<Vec<WorldChange<'a>>>,
+    current_diff: Option<Vec<WorldChange>>,
+    center_chunk: I64Vec2,
+    world_radius: u32,
 }
 pub const AUDIO_WORLD_SIDE: u32 = 16;
 pub const CHUNK_BUFFER_SIZE: u32 =
     (AUDIO_WORLD_SIDE * AUDIO_WORLD_SIDE * Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE * 2);
-impl<'a> SoundModTraceState<'a> {
-    pub fn new(device: &mut Device) -> Self {
+impl TraceState {
+    pub fn new(device: &Device) -> Self {
         let chunk_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Chunk buffer"),
             size: CHUNK_BUFFER_SIZE as BufferAddress,
@@ -37,9 +40,11 @@ impl<'a> SoundModTraceState<'a> {
             staging_belt,
             chunk_allocator,
             current_diff: Some(vec![]),
+            center_chunk: I64Vec2::ZERO,
+            world_radius: 3,
         }
     }
-    pub fn queue_diff(&mut self, change: WorldChange<'a>) {
+    pub fn queue_diff(&mut self, change: WorldChange) {
         if let Some(diff) = &mut self.current_diff {
             diff.push(change);
             return;
@@ -49,8 +54,10 @@ impl<'a> SoundModTraceState<'a> {
         //TODO: this is stupid, llvm will probably just optimize the checks out
         unsafe { self.current_diff.as_mut().unwrap_unchecked().push(change) }
     }
-    pub fn apply_diffs(&mut self, device: &mut Device, encoder: &mut CommandEncoder) {
+    pub fn apply_diffs(&mut self, device: &Device, encoder: &mut CommandEncoder) {
+        self.staging_belt.recall();
         let Some(diffs) = self.current_diff.take() else {
+            self.staging_belt.finish();
             return;
         };
         for diff in diffs.into_iter() {
@@ -59,22 +66,49 @@ impl<'a> SoundModTraceState<'a> {
                     let mut view = self.staging_belt.write_buffer(
                         encoder,
                         &self.chunk_buffer,
-                        self.chunk_allocator.get_or_alloc(location.chunk_coords),
+                        self.chunk_allocator.get_or_alloc(location.chunk_coords)
+                            + location.section_index as BufferAddress
+                                * Chunk::SINGLE_SECTION_MREF_BUF_BYTE_SIZE as BufferAddress,
                         BufferSize::new(Chunk::SINGLE_SECTION_MREF_BUF_BYTE_SIZE as u64).unwrap(),
                         device,
                     );
-                    view.copy_from_slice(bytemuck::cast_slice(new));
+                    view.copy_from_slice(bytemuck::cast_slice(new.as_ref()));
                 }
                 WorldChange::Material { id, new } => {}
             }
         }
+        println!("finishing staging belt");
         self.staging_belt.finish();
     }
-    pub fn make_chunk_index_table(&self, center: IVec2) -> ChunkIndexTable {}
+
+    pub fn make_chunk_index_table(&self, center: IVec2) -> ChunkIndexTable {
+        let mut table = ChunkIndexTable::new(3);
+        for entry in self.chunk_allocator.chunks.iter() {
+            if let Some(diff) = self.contains(*entry.0) {
+                table.set_at(
+                    diff,
+                    (entry.1 .0 / Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as u64) as u32,
+                )
+            }
+        }
+        table
+    }
+    pub fn contains(&self, a: I64Vec2) -> Option<IVec2> {
+        let diff = (a - self.center_chunk).as_ivec2();
+        if !(diff.x > ((self.world_radius) as i32 + 1)
+            || diff.x < -(self.world_radius as i32)
+            || diff.y > (self.world_radius) as i32 + 1
+            || diff.y < -(self.world_radius as i32))
+        {
+            Some(diff)
+        } else {
+            None
+        }
+    }
 }
 
 pub struct ChunkAllocator {
-    chunks: HashMap<IVec2, ChunkAllocation>,
+    pub chunks: HashMap<I64Vec2, ChunkAllocation>,
     counter: usize,
     buffer_size: usize,
     current_head: Option<ChunkAllocation>,
@@ -91,7 +125,7 @@ impl ChunkAllocator {
             current_head: None,
         }
     }
-    pub fn allocate(&mut self, chunk_coords: IVec2) -> BufferAddress {
+    pub fn allocate(&mut self, chunk_coords: I64Vec2) -> BufferAddress {
         //TODO: make this a bit more intelligent
         if self.chunks.len() == self.buffer_size / Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as usize {
             let oldest = {
@@ -122,7 +156,8 @@ impl ChunkAllocator {
             .insert(chunk_coords, ChunkAllocation(new_index, self.counter));
         new_index
     }
-    pub fn get_or_alloc(&mut self, chunk_coords: IVec2) -> BufferAddress {
+    pub fn get_or_alloc(&mut self, chunk_coords: I64Vec2) -> BufferAddress {
+        println!("fetching chunk at {}", chunk_coords);
         if let Some(alloc) = self.chunks.get(&chunk_coords) {
             return alloc.0;
         };
@@ -130,12 +165,12 @@ impl ChunkAllocator {
     }
 }
 
-pub struct WorldStateDiff<'a>(Vec<WorldChange<'a>>);
+pub struct WorldStateDiff(Vec<WorldChange>);
 #[derive(Clone, Debug)]
-pub enum WorldChange<'a> {
+pub enum WorldChange {
     Section {
         location: ChunkSectionLocation,
-        new: &'a [u16; 16 * 16 * 16],
+        new: Arc<[u16; 16 * 16 * 16]>,
     },
     Material {
         id: u16,
@@ -144,6 +179,6 @@ pub enum WorldChange<'a> {
 }
 #[derive(Copy, Clone, Debug)]
 pub struct ChunkSectionLocation {
-    pub chunk_coords: IVec2,
+    pub chunk_coords: I64Vec2,
     pub section_index: u16,
 }

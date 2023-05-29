@@ -3,11 +3,12 @@ package net.randomscientist.soundmod.util;
 import net.minecraft.block.BlockState;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
-import net.randomscientist.soundmod.SoundMod;
 import net.randomscientist.soundmod.mixins.ChunkSectionAccessor;
 import net.randomscientist.soundmod.mixins.PalettedContainerAccessor;
 
 import java.nio.ByteBuffer;
+import java.nio.LongBuffer;
+import java.util.Arrays;
 
 public class AudioChunk {
     public boolean read = false;
@@ -36,6 +37,7 @@ public class AudioChunk {
                 this.mref_buf.position(this.mref_buf.position() + 4096 * 2);
                 continue;
             }
+            LongBuffer tempLongBuffer = this.mref_buf.asLongBuffer();
             //this cast hopefully shouldn't fail
             @SuppressWarnings("unchecked cast")
             PalettedContainerAccessor<BlockState> container = (PalettedContainerAccessor<BlockState>) thisSection.getBlockStateContainer();
@@ -47,7 +49,7 @@ public class AudioChunk {
                         ( makeMatIndex(container.invokeGet(j + 2)) << 32 ) |
                         ( makeMatIndex(container.invokeGet(j + 3)) << 48 );
                 //write the accumulated 4 shorts of data out
-                this.mref_buf.asLongBuffer().put(current);
+                tempLongBuffer.put(current);
             }
             this.mref_buf.position(this.mref_buf.position() + 4096 * 2);
         }

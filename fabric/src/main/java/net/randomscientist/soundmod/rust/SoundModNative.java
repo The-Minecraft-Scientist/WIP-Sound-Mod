@@ -2,6 +2,8 @@ package net.randomscientist.soundmod.rust;
 
 import net.minecraft.client.sound.AudioStream;
 
+import java.nio.ByteBuffer;
+
 import static net.randomscientist.soundmod.rust.SoundModLib.loadNatives;
 
 public class SoundModNative {
@@ -25,6 +27,8 @@ public class SoundModNative {
     native public static void set_relative_uuid(int id, boolean relative);
     native public static void set_ogg_stream_path_uuid(int id, String path);
     native public static void set_custom_stream_uuid(int id, AudioStream stream);
+    native public static void run_debug_render();
+    native public static void set_chunk(ByteBuffer buf, long chunk_x, long chunk_y);
 
 
 }

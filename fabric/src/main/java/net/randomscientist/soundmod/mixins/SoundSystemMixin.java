@@ -1,11 +1,9 @@
 package net.randomscientist.soundmod.mixins;
 
-import io.netty.util.HashedWheelTimer;
 import net.minecraft.client.sound.*;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
-import net.randomscientist.soundmod.SoundMod;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

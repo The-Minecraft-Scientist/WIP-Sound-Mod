@@ -4,10 +4,9 @@ import net.minecraft.client.sound.AudioStream;
 import net.minecraft.client.sound.Source;
 import net.minecraft.client.sound.StaticSound;
 import net.minecraft.util.math.Vec3d;
-import net.randomscientist.soundmod.SoundMod;
+import net.randomscientist.soundmod.SoundModClient;
 import net.randomscientist.soundmod.rust.SoundModNative;
 import net.randomscientist.soundmod.sound.ResourcePathAudioStream;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -80,10 +79,10 @@ public class SourceMixin {
         if(stream instanceof ResourcePathAudioStream) {
             //This stream is a funny stream that can do funny things (like nothing)
             String name = ((ResourcePathAudioStream) stream).get_path().toString();
-            SoundMod.LOGGER.info("sound #" + this.pointer + " requesting id: " + name);
+            SoundModClient.LOGGER.info("sound #" + this.pointer + " requesting id: " + name);
             SoundModNative.set_ogg_stream_path_uuid(this.pointer, name);
         } else {
-            SoundMod.LOGGER.info("normal audio stream called :((((");
+            SoundModClient.LOGGER.info("normal audio stream called :((((");
             //Boring custom audio impl that will be a pain in the ass to support, so I won't (for now)
             SoundModNative.set_custom_stream_uuid(this.pointer, stream);
         }

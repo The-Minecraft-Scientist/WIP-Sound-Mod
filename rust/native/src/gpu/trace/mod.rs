@@ -1,2 +1,2 @@
 pub mod chunk;
-mod world;
+pub mod world;

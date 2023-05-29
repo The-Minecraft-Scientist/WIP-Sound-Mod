@@ -20,15 +20,20 @@ impl Chunk {
 #[repr(C)]
 pub struct ChunkIndexTable {
     data: [UVec4; 256],
+    radius: u32,
 }
 impl ChunkIndexTable {
-    pub const fn new() -> Self {
+    pub const fn new(radius: u32) -> Self {
         Self {
             data: [UVec4::splat(0); 256],
+            radius,
         }
     }
     /// Sets the chunk offset corresponding to this position
-    pub fn set_at(&mut self, pos: UVec2, offset: u32) {
+    pub fn set_at(&mut self, mut pos: IVec2, offset: u32) {
+        pos += IVec2::splat(self.radius as i32);
+        assert!(pos.cmpge(IVec2::splat(0)).all());
+        let pos = pos.as_uvec2();
         assert!(pos.x < 32 || pos.y < 32);
         let index = (pos.y << 4) | pos.x;
         let mut val: &mut UVec4 = &mut self.data[index as usize];

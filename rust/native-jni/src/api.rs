@@ -1,10 +1,13 @@
 use crate::static_sound::JNIStaticSoundProvider;
 use crossbeam::channel::{Receiver, Sender};
-use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jboolean, jdouble, jfloat, jint};
+use glam::{I64Vec2, IVec2};
+use jni::objects::{JByteBuffer, JClass, JObject, JString};
+use jni::sys::{jboolean, jdouble, jfloat, jint, jlong};
 use jni::JNIEnv;
 use jni_fn::jni_fn;
 use once_cell::sync::OnceCell;
+use soundmod_native::gpu::trace::chunk::Chunk;
+use soundmod_native::gpu::trace::world::{ChunkSectionLocation, WorldChange};
 use soundmod_native::gpu::{DebugRenderer, InterfaceToGpuMessage};
 use soundmod_native::interface::sound::resource::ResourcePath;
 use soundmod_native::interface::McToInterfaceMessage::Change;
@@ -12,22 +15,31 @@ use soundmod_native::interface::{
     InterfaceToMcTalkBack, McToInterfaceMessage, SoundModInterfaceBuilder, SoundUpdateType,
     UpdateSound,
 };
+use std::ptr::slice_from_raw_parts;
+use std::sync::Arc;
 use std::thread;
 
 #[derive(Debug)]
-pub struct GlobalState(
+pub struct InterfaceGlobalState(
     Sender<McToInterfaceMessage>,
     Receiver<InterfaceToMcTalkBack>,
 );
-
-pub struct StateCell(OnceCell<GlobalState>);
+#[derive(Debug)]
+pub struct GpuGlobalState(Sender<InterfaceToGpuMessage>);
+pub struct StateCell {
+    interface_state: OnceCell<InterfaceGlobalState>,
+    gpu_state: OnceCell<GpuGlobalState>,
+}
 impl StateCell {
     pub const fn new() -> Self {
-        Self(OnceCell::new())
+        Self {
+            interface_state: OnceCell::new(),
+            gpu_state: OnceCell::new(),
+        }
     }
 
     fn send(&self, msg: McToInterfaceMessage) {
-        self.0
+        self.interface_state
             .get()
             .expect("failed to acquire sender!")
             .0
@@ -35,26 +47,46 @@ impl StateCell {
             .expect("send failed!");
     }
     fn get_new_sender(&self) -> Sender<McToInterfaceMessage> {
-        self.0.get().expect("failed to acquire sender!").0.clone()
+        self.interface_state
+            .get()
+            .expect("failed to acquire sender!")
+            .0
+            .clone()
     }
-    fn set(
+    fn set_interface(
         &self,
         vals: (
             Sender<McToInterfaceMessage>,
             Receiver<InterfaceToMcTalkBack>,
         ),
     ) {
-        self.0
-            .set(GlobalState(vals.0, vals.1))
+        self.interface_state
+            .set(InterfaceGlobalState(vals.0, vals.1))
             .expect("failed to set value of global state");
     }
     fn update_sound(&self, id: u32, update: SoundUpdateType) {
         self.send(Change(UpdateSound::new(id, update)));
     }
     fn receive(&self) -> InterfaceToMcTalkBack {
-        let state = self.0.get().expect("failed to get global state");
+        let state = self
+            .interface_state
+            .get()
+            .expect("failed to get global state");
         let res = state.1.recv().unwrap();
         res
+    }
+    fn set_gpu(&self, val: GpuGlobalState) {
+        self.gpu_state
+            .set(val)
+            .expect("failed to set value of global state")
+    }
+    fn send_gpu(&self, msg: InterfaceToGpuMessage) {
+        self.gpu_state
+            .get()
+            .expect("failed to acquire sender")
+            .0
+            .send(msg)
+            .expect("failed to send message to GPU thread")
     }
 }
 
@@ -76,17 +108,16 @@ pub fn init(env: JNIEnv, _parent_class: JClass, resource_class: JClass) {
         ),
         (),
     );
-    SENDER.set(builder.run());
+    SENDER.set_interface(builder.run());
     let (tx, rx) = crossbeam::channel::unbounded::<InterfaceToGpuMessage>();
-    thread::spawn(move || {
+    SENDER.set_gpu(GpuGlobalState(tx));
+    let _ = thread::spawn(move || {
         println!("starting debug renderer");
-        let mut renderer = pollster::block_on(DebugRenderer::new(rx));
-        println!("calling render()");
-        //TODO: map this to an mc keybind for ""very"" convenient debugging
-        pollster::block_on(DebugRenderer::render(&mut renderer)).unwrap();
-    })
-    .join()
-    .unwrap();
+        let mut renderer = pollster::block_on(DebugRenderer::new());
+        for msg in rx {
+            renderer.process(msg)
+        }
+    });
 }
 
 #[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
@@ -224,4 +255,40 @@ pub fn set_custom_stream_uuid(
     _uuid: jint,
     _audio_stream: JObject,
 ) {
+}
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn run_debug_render(_env: JNIEnv, _parent: JClass) {
+    SENDER.send_gpu(InterfaceToGpuMessage::RunDebugRender);
+}
+#[jni_fn("net.randomscientist.soundmod.rust.SoundModNative")]
+pub fn set_chunk(
+    env: JNIEnv,
+    _parent_class: JClass,
+    chunk_buffer: JByteBuffer,
+    chunk_x: jlong,
+    chunk_z: jlong,
+) {
+    const SECTION_OFFSET: usize = std::mem::size_of::<u16>() * 16 * 16 * 16;
+    //If this is not true we are in a bad spot...
+    assert_eq!(
+        env.get_direct_buffer_capacity(&chunk_buffer).unwrap(),
+        (Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as usize)
+    );
+    let bufptr = env.get_direct_buffer_address(&chunk_buffer).unwrap() as *const u8;
+    for section in 0..23 {
+        let section_slice = unsafe {
+            &*(slice_from_raw_parts(bufptr.add(section * SECTION_OFFSET), SECTION_OFFSET)
+                as *const [u16; 16 * 16 * 16])
+        };
+        let mut out_slice = [0u16; 16 * 16 * 16];
+        out_slice.copy_from_slice(section_slice);
+        let change = WorldChange::Section {
+            location: ChunkSectionLocation {
+                chunk_coords: I64Vec2::new(chunk_x, chunk_z),
+                section_index: section as u16,
+            },
+            new: Arc::new(out_slice),
+        };
+        SENDER.send_gpu(InterfaceToGpuMessage::WorldChange(change));
+    }
 }
