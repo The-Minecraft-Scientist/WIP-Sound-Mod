@@ -1,3 +1,10 @@
 .idea
 .gradle
 */.build
+/rust/native-jni/build/rust/_fr_stardustenterprises_gradle_rust_exports.zip
+/rust/native/Cargo.lock
+/rust/native/build/rust/exports.json
+/rust/native-jni/build/rust/exports.json
+/rust/native-jni/build/rust/outputs/x86_64-apple-darwin/libnative-jni.dylib
+/xcode/soundmod/soundmod.xcodeproj/xcshareddata/xcschemes/soundmod.xcscheme
+/xcode/soundmod/soundmod.xcodeproj/project.xcworkspace/xcuserdata/charles.xcuserdatad/UserInterfaceState.xcuserstate
