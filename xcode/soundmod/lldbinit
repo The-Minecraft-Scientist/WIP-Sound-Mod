@@ -1,0 +1,1 @@
+break set -n main -C "process handle --pass true --stop false --notify true SIGSEGV" -C "process handle --pass true --stop false --notify true SIGBUS" -C "continue"

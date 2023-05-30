@@ -23,6 +23,7 @@
 			buildPhases = (
 			);
 			buildToolPath = ls;
+			buildWorkingDirectory = "";
 			dependencies = (
 			);
 			name = soundmod;

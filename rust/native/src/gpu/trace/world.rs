@@ -87,7 +87,7 @@ impl TraceState {
             if let Some(diff) = self.contains(*entry.0) {
                 table.set_at(
                     diff,
-                    (entry.1 .0 / Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as u64) as u32,
+                    (entry.1.location / Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as u64) as u32,
                 )
             }
         }
@@ -114,7 +114,10 @@ pub struct ChunkAllocator {
     current_head: Option<ChunkAllocation>,
 }
 #[derive(Copy, Clone, Debug)]
-pub struct ChunkAllocation(BufferAddress, usize);
+pub struct ChunkAllocation {
+    location: BufferAddress,
+    id: usize,
+}
 
 impl ChunkAllocator {
     pub fn new(buffer_size: usize) -> Self {
@@ -127,39 +130,48 @@ impl ChunkAllocator {
     }
     pub fn allocate(&mut self, chunk_coords: I64Vec2) -> BufferAddress {
         //TODO: make this a bit more intelligent
-        if self.chunks.len() == self.buffer_size / Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as usize {
+        if self.chunks.len()
+            == (self.buffer_size / Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as usize - 1)
+        {
             let oldest = {
                 let mut iter = self.chunks.iter();
                 let mut oldest = iter.next().unwrap();
                 //drop the oldest chunk
                 for i in iter {
-                    if i.1 .1 < oldest.1 .1 {
+                    if i.1.id < oldest.1.id {
                         oldest = i;
                     }
                 }
                 (*oldest.0, *oldest.1)
             };
-            let _ = self
-                .chunks
-                .insert(chunk_coords, ChunkAllocation(oldest.1 .0, self.counter));
+            let _ = self.chunks.remove(&oldest.0);
+            let _ = self.chunks.insert(
+                chunk_coords,
+                ChunkAllocation {
+                    location: oldest.1.location,
+                    id: self.counter,
+                },
+            );
             self.counter += 1;
-            return oldest.1 .0;
+            return oldest.1.location;
         }
         let head = match self.current_head {
             Some(h) => h,
-            None => ChunkAllocation(0, 0),
+            None => ChunkAllocation { id: 0, location: 0 },
         };
-        let new_index = head.0 + Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as BufferAddress;
+        let new_index = head.location + Chunk::SINGLE_CHUNK_MREF_BUF_BYTE_SIZE as BufferAddress;
+        let new_head = ChunkAllocation {
+            id: self.counter,
+            location: new_index,
+        };
         self.counter += 1;
-        let _ = self
-            .chunks
-            .insert(chunk_coords, ChunkAllocation(new_index, self.counter));
+        self.current_head = Some(new_head);
+        let _ = self.chunks.insert(chunk_coords, new_head);
         new_index
     }
     pub fn get_or_alloc(&mut self, chunk_coords: I64Vec2) -> BufferAddress {
-        println!("fetching chunk at {}", chunk_coords);
         if let Some(alloc) = self.chunks.get(&chunk_coords) {
-            return alloc.0;
+            return alloc.location;
         };
         self.allocate(chunk_coords)
     }

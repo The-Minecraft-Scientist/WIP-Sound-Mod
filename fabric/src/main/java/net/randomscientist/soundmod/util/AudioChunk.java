@@ -61,8 +61,8 @@ public class AudioChunk {
     // Additionally, the overhead from sending string block state ids in an Object[] instead of a tidy direct byte buffer I can get a raw pointer into
     // probably outweighs the potential performance gains.
     private long makeMatIndex(BlockState b) {
-        if(b.isAir()) {return 0L;}
-        return 1L;
+        if(b.isAir()) {return 1L;}
+        return 2L;
     }
 
     //Called from native code
