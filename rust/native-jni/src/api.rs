@@ -114,6 +114,7 @@ pub fn init(env: JNIEnv, _parent_class: JClass, resource_class: JClass) {
     let _ = thread::spawn(move || {
         println!("starting debug renderer");
         let mut renderer = pollster::block_on(DebugRenderer::new());
+        pollster::block_on(renderer.render()).expect("TODO: panic message");
         for msg in rx {
             renderer.process(msg)
         }

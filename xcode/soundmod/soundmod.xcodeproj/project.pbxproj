@@ -18,16 +18,16 @@
 /* Begin PBXLegacyTarget section */
 		561E172D2A24C85F003D1EFE /* soundmod */ = {
 			isa = PBXLegacyTarget;
-			buildArgumentsString = "$(ACTION)";
+			buildArgumentsString = build_project.sh;
 			buildConfigurationList = 561E17302A24C85F003D1EFE /* Build configuration list for PBXLegacyTarget "soundmod" */;
 			buildPhases = (
 			);
-			buildToolPath = ls;
-			buildWorkingDirectory = "";
+			buildToolPath = bash;
+			buildWorkingDirectory = "/Volumes/Store/Users/charles/Desktop/Coding/rust-test/WIP-Sound-Mod";
 			dependencies = (
 			);
 			name = soundmod;
-			passBuildSettingsInEnvironment = 1;
+			passBuildSettingsInEnvironment = 0;
 			productName = soundmod;
 		};
 /* End PBXLegacyTarget section */
@@ -170,6 +170,7 @@
 		561E17312A24C85F003D1EFE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEBUGGING_SYMBOLS = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -184,6 +185,7 @@
 		561E17322A24C85F003D1EFE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				OTHER_CFLAGS = "";

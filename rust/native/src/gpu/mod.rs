@@ -188,6 +188,7 @@ impl DebugRenderer {
             },
         );
         self.queue.submit(Some(encoder.finish()));
+        self.world_state.staging_belt.recall();
         {
             let sliced = self.out_buf.slice(..);
             let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
@@ -198,7 +199,7 @@ impl DebugRenderer {
             rx.receive().await.unwrap().unwrap();
             let data = sliced.get_mapped_range();
 
-            use image::{ImageBuffer, Rgba};
+            use image::Rgba;
             let buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(1920, 1080, data).unwrap();
             let _ = std::fs::remove_file("image.png");
             buffer.save("image.png").expect("failed to save image");
