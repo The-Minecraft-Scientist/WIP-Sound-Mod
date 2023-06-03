@@ -12,25 +12,16 @@ struct Ray {
 fn intersect_box(box: AABB, ray: Ray, tvals: ptr<function, vec2<f32>>) -> bool {
     let r_inv = vec3(1.0) / ray.dir;
 
-    var t1 = (box.min.x - ray.orig.x) * r_inv.x;
-    var t2 = (box.max.x - ray.orig.x) * r_inv.x;
+    var t1 = (box.min - ray.orig) * r_inv;
+    var t2 = (box.max - ray.orig) * r_inv;
 
-    var tmin = min(t1, t2);
-    var tmax = max(t1, t2);
+    let tmin = min(t1.x, t2.x);
+    let tmax = max(t1.x, t2.x);
+    tmin = max(tmin, min(t1.y, t2.y));
+    tmin = max(tmin, min(t1.z, t2.z));
+    tmax = min(tmax, max(t1.y, t2.y));
+    tmax = min(tmax, max(t1.z, t2.z));
 
-
-    t1 = (box.min.y - ray.orig.y) * r_inv.y;
-    t2 = (box.max.y - ray.orig.y) * r_inv.y;
-
-    tmin = max(tmin, min(t1, t2));
-    tmax = min(tmax, max(t1, t2));
-
-
-    t1 = (box.min.z - ray.orig.z) * r_inv.z;
-    t2 = (box.max.z - ray.orig.z) * r_inv.z;
-
-    tmin = max(tmin, min(t1, t2));
-    tmax = min(tmax, max(t1, t2));
     *tvals = vec2(tmin, tmax);
 
     return tmax >= tmin;
@@ -94,7 +85,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(@builtin(vertex_index) in_vert_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    switch in_vert_index {
+    switch (in_vert_index) {
     //Awesome hardcoded quad
         case 0u: {out.clip_position = vec4(1.0, 1.0, 0.0, 1.0);}
         case 1u: {out.clip_position = vec4(-1.0, 1.0, 0.0, 1.0);}
@@ -117,7 +108,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tminmax = vec2(0.0, 0.0);
     let b = intersect_box(BOX, ray, &tminmax);
     var r = 0.0;
-    if b {r = 1.0;}
+    if(b) {r = 1.0;}
     return vec4(uv, r, 1.0);
 }
 
