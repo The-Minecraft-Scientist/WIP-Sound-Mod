@@ -6,6 +6,9 @@ use glam::{IVec2, UVec2, UVec4};
 pub struct Material {
     some_val: f32,
 }
+impl Material {
+    pub const SIZE: u64 = std::mem::size_of::<Self>() as u64;
+}
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
 #[repr(C)]
 pub struct Chunk {
