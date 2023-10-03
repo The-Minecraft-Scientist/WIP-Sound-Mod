@@ -1,8 +1,6 @@
 pub mod convolve;
 pub mod trace;
 
-use crate::gpu::trace::chunk::Chunk;
-use crossbeam::channel::Receiver;
 use glam::{IVec2, UVec2};
 use image::ImageBuffer;
 use wgpu::{
@@ -10,10 +8,10 @@ use wgpu::{
     TextureFormat, TextureView,
 };
 
-use crate::gpu::trace::world::{TraceState, WorldChange};
+use crate::gpu::trace::world::{TraceState, TraceStateChange};
 
 pub enum InterfaceToGpuMessage {
-    WorldChange(WorldChange),
+    WorldChange(TraceStateChange),
     RunDebugRender,
 }
 pub struct DebugRenderer {

@@ -1,5 +1,6 @@
 use crate::gpu::trace::chunk::{Chunk, ChunkIndexTable, Material};
-use glam::{I64Vec2, IVec2};
+use crate::gpu::trace::uniforms::Uniforms;
+use glam::{I64Vec2, IVec2, Vec3};
 use std::collections::HashMap;
 use std::sync::Arc;
 use wgpu::util::StagingBelt;
@@ -8,9 +9,10 @@ use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSize, CommandEncoder, 
 pub struct TraceState {
     chunk_buffer: Buffer,
     material_buf: Buffer,
+    pub uniforms: Uniforms,
     pub staging_belt: StagingBelt,
     chunk_allocator: ChunkAllocator,
-    current_diff: Option<Vec<WorldChange>>,
+    current_diff: Option<Vec<TraceStateChange>>,
     center_chunk: I64Vec2,
     world_radius: u32,
 }
@@ -42,9 +44,10 @@ impl TraceState {
             current_diff: Some(vec![]),
             center_chunk: I64Vec2::ZERO,
             world_radius: 3,
+            uniforms: Uniforms::default(),
         }
     }
-    pub fn queue_diff(&mut self, change: WorldChange) {
+    pub fn queue_diff(&mut self, change: TraceStateChange) {
         if let Some(diff) = &mut self.current_diff {
             diff.push(change);
             return;
@@ -62,7 +65,7 @@ impl TraceState {
         };
         for diff in diffs.into_iter() {
             match diff {
-                WorldChange::Section { location, new } => {
+                TraceStateChange::Section { location, new } => {
                     let mut view = self.staging_belt.write_buffer(
                         encoder,
                         &self.chunk_buffer,
@@ -74,7 +77,9 @@ impl TraceState {
                     );
                     view.copy_from_slice(bytemuck::cast_slice(new.as_ref()));
                 }
-                WorldChange::Material { id, new } => {}
+                TraceStateChange::Material { id, new } => {
+                    self.staging_belt.write_buffer(encoder, self.material_buf)
+                }
             }
         }
         println!("finishing staging belt");
@@ -177,9 +182,9 @@ impl ChunkAllocator {
     }
 }
 
-pub struct WorldStateDiff(Vec<WorldChange>);
+pub struct WorldStateDiff(Vec<TraceStateChange>);
 #[derive(Clone, Debug)]
-pub enum WorldChange {
+pub enum TraceStateChange {
     Section {
         location: ChunkSectionLocation,
         new: Arc<[u16; 16 * 16 * 16]>,
@@ -187,6 +192,10 @@ pub enum WorldChange {
     Material {
         id: u16,
         new: Material,
+    },
+    Player {
+        position: Vec3,
+        look_dir: Vec3,
     },
 }
 #[derive(Copy, Clone, Debug)]

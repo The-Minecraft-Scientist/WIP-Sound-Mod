@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class RustOggStream implements ResourcePathAudioStream {
-    private Identifier path;
+    private final Identifier path;
     public RustOggStream(Identifier p) {
         this.path = p;
     }

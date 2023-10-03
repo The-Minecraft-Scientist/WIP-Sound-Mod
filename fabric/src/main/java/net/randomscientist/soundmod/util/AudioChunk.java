@@ -38,7 +38,7 @@ public class AudioChunk {
                 continue;
             }
             LongBuffer tempLongBuffer = this.mref_buf.asLongBuffer();
-            //this cast hopefully shouldn't fail
+            //this cast should not fail; casting to a mixed-in interface
             @SuppressWarnings("unchecked cast")
             PalettedContainerAccessor<BlockState> container = (PalettedContainerAccessor<BlockState>) thisSection.getBlockStateContainer();
             for(int j = 0; j < 4096; j += 4) {

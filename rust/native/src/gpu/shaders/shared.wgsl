@@ -48,6 +48,7 @@ struct Uniforms {
     //We pack 4 array entries at every index due to offset restraints
     chunk_index_table: array<vec4<u32>, 256u>,
     player_position: vec3<f32>,
+    player_lookdir: vec3<f32>,
 
 }
 @group(0) @binding(2)

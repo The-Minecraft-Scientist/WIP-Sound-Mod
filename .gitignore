@@ -1,5 +1,6 @@
 .idea
 .gradle
+*.DS_Store
 */.build
 /rust/native-jni/build/rust/_fr_stardustenterprises_gradle_rust_exports.zip
 /rust/native/Cargo.lock
