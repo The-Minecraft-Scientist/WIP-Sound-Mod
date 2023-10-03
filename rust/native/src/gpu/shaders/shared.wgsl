@@ -12,25 +12,16 @@ struct Ray {
 fn intersect_box(box: AABB, ray: Ray, tvals: ptr<function, vec2<f32>>) -> bool {
     let r_inv = vec3(1.0) / ray.dir;
 
-    var t1 = (box.min.x - ray.orig.x) * r_inv.x;
-    var t2 = (box.max.x - ray.orig.x) * r_inv.x;
+    let t1 = (box.min - ray.orig) * r_inv;
+    let t2 = (box.max - ray.orig) * r_inv;
 
-    var tmin = min(t1, t2);
-    var tmax = max(t1, t2);
+    var tmin = min(t1.x, t2.x);
+    var tmax = max(t1.x, t2.x);
+    tmin = max(tmin, min(t1.y, t2.y));
+    tmin = max(tmin, min(t1.z, t2.z));
+    tmax = min(tmax, max(t1.y, t2.y));
+    tmax = min(tmax, max(t1.z, t2.z));
 
-
-    t1 = (box.min.y - ray.orig.y) * r_inv.y;
-    t2 = (box.max.y - ray.orig.y) * r_inv.y;
-
-    tmin = max(tmin, min(t1, t2));
-    tmax = min(tmax, max(t1, t2));
-
-
-    t1 = (box.min.z - ray.orig.z) * r_inv.z;
-    t2 = (box.max.z - ray.orig.z) * r_inv.z;
-
-    tmin = max(tmin, min(t1, t2));
-    tmax = min(tmax, max(t1, t2));
     *tvals = vec2(tmin, tmax);
 
     return tmax >= tmin;
@@ -40,15 +31,15 @@ const RESC_WORLD_RADIUS = 3u;
 struct Material {
     property_idk: f32,
 }
-// 24576 = 16 * 16 * 384 / 2 (16x16x384 chunk, 2byte material refs, 4 bytes per u32)
+// 49152 = 16 * 16 * 384 * 2/4 (16x16x384 chunk, 2byte material refs, 4 bytes per u32)
 struct Chunk {
     chunk_mrefs: array<u32, 49152>,
 }
 struct Uniforms {
-    //We pack 4 array entries at every index due to offset restraints
+    //We pack 4 array entries at every index due to offset constraints
     chunk_index_table: array<vec4<u32>, 256u>,
     player_position: vec3<f32>,
-    player_lookdir: vec3<f32>,
+    player_look_dir: vec3<f32>,
 
 }
 @group(0) @binding(2)
@@ -58,11 +49,12 @@ fn chunk_index(pos: vec2<i32>) -> u32 {
     var pos2 = pos;
     pos2 += vec2<i32>(i32(RESC_WORLD_RADIUS));
     let ind = ((u32(pos2.y)) << 6u) | u32(pos2.x);
+    let accessed = uniforms.chunk_index_table[ind >> 2u];
     switch (ind & 3u) {
-        case 0u: {return uniforms.chunk_index_table[ind >> 2u].x;}
-        case 1u: {return uniforms.chunk_index_table[ind >> 2u].y;}
-        case 2u: {return uniforms.chunk_index_table[ind >> 2u].z;}
-        case 3u: {return uniforms.chunk_index_table[ind >> 2u].w;}
+        case 0u: {return accessed.x;}
+        case 1u: {return accessed.y;}
+        case 2u: {return accessed.z;}
+        case 3u: {return accessed.w;}
         default: {return 0u;}
     }
 }
@@ -95,7 +87,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(@builtin(vertex_index) in_vert_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    switch in_vert_index {
+    switch (in_vert_index) {
     //Awesome hardcoded quad
         case 0u: {out.clip_position = vec4(1.0, 1.0, 0.0, 1.0);}
         case 1u: {out.clip_position = vec4(-1.0, 1.0, 0.0, 1.0);}

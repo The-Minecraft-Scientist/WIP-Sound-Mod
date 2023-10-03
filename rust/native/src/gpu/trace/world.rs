@@ -5,7 +5,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use wgpu::util::StagingBelt;
 use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSize, CommandEncoder, Device};
-
+#[derive(Copy, Clone, Debug, Default)]
+pub struct RunningWorldState {
+    pub center_chunk: I64Vec2,
+    pub client_player_pos: Vec3,
+    pub client_player_look_dir: Vec3,
+}
 pub struct TraceState {
     chunk_buffer: Buffer,
     material_buf: Buffer,
@@ -29,7 +34,7 @@ impl TraceState {
         });
         let material_buf = device.create_buffer(&BufferDescriptor {
             label: Some("Material buffer"),
-            size: (std::mem::size_of::<Material>() * (u16::MAX as usize)) as BufferAddress,
+            size: (Material::SIZE as usize * (u16::MAX as usize)) as BufferAddress,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -59,11 +64,11 @@ impl TraceState {
     }
     pub fn apply_diffs(&mut self, device: &Device, encoder: &mut CommandEncoder) {
         self.staging_belt.recall();
-        let Some(diffs) = self.current_diff.take() else {
+        if self.current_diff.len() == 0 {
             self.staging_belt.finish();
             return;
-        };
-        for diff in diffs.into_iter() {
+        }
+        for diff in self.current_diff.iter() {
             match diff {
                 TraceStateChange::Section { location, new } => {
                     let mut view = self.staging_belt.write_buffer(
@@ -75,13 +80,34 @@ impl TraceState {
                         BufferSize::new(Chunk::SINGLE_SECTION_MREF_BUF_BYTE_SIZE as u64).unwrap(),
                         device,
                     );
-                    view.copy_from_slice(bytemuck::cast_slice(new.as_ref()));
+                    view.copy_from_slice(bytemuck::cast_slice(new.as_slice()));
+                }
+                WorldChange::Material { id, new } => {
+                    let mut view = self.staging_belt.write_buffer(
+                        encoder,
+                        &self.material_buf,
+                        *id as BufferAddress * Material::SIZE,
+                        BufferSize::new(Material::SIZE).unwrap(),
+                        device,
+                    );
+                    view.copy_from_slice(bytemuck::cast_ref::<
+                        Material,
+                        [u8; Material::SIZE as usize],
+                    >(new))
+                }
+                WorldChange::WorldChunkCenter { new } => {
+                    self.running_world_state.center_chunk = *new;
+                }
+                WorldChange::PlayerInfo { pos, look_dir } => {
+                    self.running_world_state.client_player_look_dir = *look_dir;
+                    self.running_world_state.client_player_pos = *pos;
                 }
                 TraceStateChange::Material { id, new } => {
                     self.staging_belt.write_buffer(encoder, self.material_buf)
                 }
             }
         }
+        self.current_diff.clear();
         println!("finishing staging belt");
         self.staging_belt.finish();
     }
@@ -99,11 +125,11 @@ impl TraceState {
         table
     }
     pub fn contains(&self, a: I64Vec2) -> Option<IVec2> {
-        let diff = (a - self.center_chunk).as_ivec2();
-        if !(diff.x > ((self.world_radius) as i32 + 1)
-            || diff.x < -(self.world_radius as i32)
-            || diff.y > (self.world_radius) as i32 + 1
-            || diff.y < -(self.world_radius as i32))
+        let diff = (a - self.running_world_state.center_chunk).as_ivec2();
+        if !(diff.x > ((self.radius) as i32 + 1)
+            || diff.x < -(self.radius as i32)
+            || diff.y > (self.radius) as i32 + 1
+            || diff.y < -(self.radius as i32))
         {
             Some(diff)
         } else {
